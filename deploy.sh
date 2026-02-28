@@ -5,8 +5,13 @@ SERVER="root@104.131.94.68"
 REMOTE_DIR="/var/www/punch"
 NGINX_CONF="/etc/nginx/sites-enabled/punch.ehrlich.dev.conf"
 
+CACHE_BUST=$(date +%s)
+
 ssh $SERVER "mkdir -p $REMOTE_DIR"
 scp index.html fortran.js Keypunch029.otf Keypunch029-Bold.otf codemirror.min.css codemirror.min.js $SERVER:$REMOTE_DIR/
+
+# Cache-bust static assets with deploy timestamp
+ssh $SERVER "sed -i 's/codemirror\.min\.css/codemirror.min.css?v=$CACHE_BUST/g; s/codemirror\.min\.js/codemirror.min.js?v=$CACHE_BUST/g; s/fortran\.js/fortran.js?v=$CACHE_BUST/g' $REMOTE_DIR/index.html"
 
 # Ensure nginx config exists
 ssh $SERVER "test -f $NGINX_CONF || cat > $NGINX_CONF << 'EOF'
