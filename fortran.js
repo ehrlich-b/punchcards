@@ -98,6 +98,21 @@ function tokenizeExpr(str) {
         if ('+-*/()=,'.includes(str[i])) {
             tokens.push({ type: 'OP', value: str[i] }); i++; continue;
         }
+        // Quoted string literal
+        if (str[i] === "'") {
+            i++;
+            let text = '';
+            while (i < str.length) {
+                if (str[i] === "'" && i + 1 < str.length && str[i + 1] === "'") {
+                    text += "'"; i += 2;
+                } else if (str[i] === "'") {
+                    i++; break;
+                } else {
+                    text += str[i]; i++;
+                }
+            }
+            tokens.push({ type: 'STRING', value: text }); continue;
+        }
         if (/\d/.test(str[i])) {
             let num = '';
             while (i < str.length && /\d/.test(str[i])) { num += str[i]; i++; }
@@ -135,7 +150,7 @@ function parseOr(tokens, pos) {
         p++;
         let right;
         [right, p] = parseAnd(tokens, p);
-        left = { type: 'LOGOP', op: '.OR.', left, right };
+        left = { type: 'LOGOP', op: '.OR.', left, right, isReal: false };
     }
     return [left, p];
 }
@@ -146,7 +161,7 @@ function parseAnd(tokens, pos) {
         p++;
         let right;
         [right, p] = parseNot(tokens, p);
-        left = { type: 'LOGOP', op: '.AND.', left, right };
+        left = { type: 'LOGOP', op: '.AND.', left, right, isReal: false };
     }
     return [left, p];
 }
@@ -155,7 +170,7 @@ function parseNot(tokens, pos) {
     if (pos < tokens.length && tokens[pos].type === 'OP' && tokens[pos].value === '.NOT.') {
         pos++;
         let [operand, p] = parseNot(tokens, pos);
-        return [{ type: 'LOGOP', op: '.NOT.', operand }, p];
+        return [{ type: 'LOGOP', op: '.NOT.', operand, isReal: false }, p];
     }
     return parseRelational(tokens, pos);
 }
@@ -168,7 +183,7 @@ function parseRelational(tokens, pos) {
         const op = tokens[p].value; p++;
         let right;
         [right, p] = parseAddSub(tokens, p);
-        left = { type: 'RELOP', op, left, right };
+        left = { type: 'RELOP', op, left, right, isReal: false };
     }
     return [left, p];
 }
@@ -179,7 +194,7 @@ function parseAddSub(tokens, pos) {
         const op = tokens[p].value; p++;
         let right;
         [right, p] = parseMulDiv(tokens, p);
-        left = { type: 'BINOP', op, left, right };
+        left = { type: 'BINOP', op, left, right, isReal: left.isReal || right.isReal };
     }
     return [left, p];
 }
@@ -190,7 +205,7 @@ function parseMulDiv(tokens, pos) {
         const op = tokens[p].value; p++;
         let right;
         [right, p] = parsePower(tokens, p);
-        left = { type: 'BINOP', op, left, right };
+        left = { type: 'BINOP', op, left, right, isReal: left.isReal || right.isReal };
     }
     return [left, p];
 }
@@ -201,7 +216,7 @@ function parsePower(tokens, pos) {
         p++;
         let exp;
         [exp, p] = parsePower(tokens, p);
-        base = { type: 'BINOP', op: '**', left: base, right: exp };
+        base = { type: 'BINOP', op: '**', left: base, right: exp, isReal: base.isReal || exp.isReal };
     }
     return [base, p];
 }
@@ -210,7 +225,7 @@ function parseUnary(tokens, pos) {
     if (pos < tokens.length && tokens[pos].type === 'OP' && (tokens[pos].value === '+' || tokens[pos].value === '-')) {
         const op = tokens[pos].value; pos++;
         let [operand, p] = parsePrimary(tokens, pos);
-        if (op === '-') operand = { type: 'UNARY', op: '-', operand };
+        if (op === '-') operand = { type: 'UNARY', op: '-', operand, isReal: operand.isReal };
         return [operand, p];
     }
     return parsePrimary(tokens, pos);
@@ -220,7 +235,11 @@ function parsePrimary(tokens, pos) {
     if (pos >= tokens.length) return [{ type: 'NUM_LIT', value: 0 }, pos];
     const tok = tokens[pos];
     if (tok.type === 'NUM') {
-        return [{ type: 'NUM_LIT', value: tok.value.includes('.') ? parseFloat(tok.value) : parseInt(tok.value, 10) }, pos + 1];
+        const isReal = tok.value.includes('.');
+        return [{ type: 'NUM_LIT', value: isReal ? parseFloat(tok.value) : parseInt(tok.value, 10), isReal }, pos + 1];
+    }
+    if (tok.type === 'STRING') {
+        return [{ type: 'STRING_LIT', value: tok.value, isReal: false }, pos + 1];
     }
     if (tok.type === 'ID') {
         // Check for array reference: NAME(subscripts)
@@ -236,9 +255,9 @@ function parsePrimary(tokens, pos) {
                 break;
             }
             if (p < tokens.length && tokens[p].type === 'OP' && tokens[p].value === ')') p++;
-            return [{ type: 'ARRAY_REF', name, subscripts }, p];
+            return [{ type: 'ARRAY_REF', name, subscripts, isReal: !isImplicitInteger(name) }, p];
         }
-        return [{ type: 'VAR', name: tok.value }, pos + 1];
+        return [{ type: 'VAR', name: tok.value, isReal: !isImplicitInteger(tok.value) }, pos + 1];
     }
     if (tok.type === 'OP' && tok.value === '(') {
         pos++;
@@ -246,7 +265,7 @@ function parsePrimary(tokens, pos) {
         if (p < tokens.length && tokens[p].type === 'OP' && tokens[p].value === ')') p++;
         return [expr, p];
     }
-    return [{ type: 'NUM_LIT', value: 0 }, pos + 1];
+    return [{ type: 'NUM_LIT', value: 0, isReal: false }, pos + 1];
 }
 
 function parseExprList(str) {
@@ -267,12 +286,13 @@ function parseExprList(str) {
 function evalExpr(node, vars, arrays) {
     switch (node.type) {
         case 'NUM_LIT': return node.value;
+        case 'STRING_LIT': return node.value;
         case 'VAR': return vars[node.name] !== undefined ? vars[node.name] : defaultValue(node.name);
         case 'UNARY': return -evalExpr(node.operand, vars, arrays);
         case 'BINOP': {
             const l = evalExpr(node.left, vars, arrays);
             const r = evalExpr(node.right, vars, arrays);
-            const bothInt = Number.isInteger(l) && Number.isInteger(r);
+            const bothInt = !node.isReal && Number.isInteger(l) && Number.isInteger(r);
             switch (node.op) {
                 case '+': return bothInt ? (l + r) | 0 : l + r;
                 case '-': return bothInt ? (l - r) | 0 : l - r;
@@ -317,6 +337,7 @@ function evalExpr(node, vars, arrays) {
 }
 
 function coerceToType(name, value) {
+    if (typeof value === 'string') return value;
     if (isImplicitInteger(name)) return Math.trunc(value);
     return typeof value === 'number' ? value : parseFloat(value);
 }
@@ -460,8 +481,72 @@ function parseWrite(compressed, stmt) {
     const unit = parseInt(parts[0], 10);
     const formatLabel = parts.length > 1 ? parseInt(parts[1], 10) : null;
     const rest = compressed.substring(closeParen + 1).trim();
-    const ioList = rest ? parseExprList(rest) : [];
+    const ioList = rest ? parseIOList(rest) : [];
     return { type: 'WRITE', unit, formatLabel, ioList };
+}
+
+function parseIOList(str) {
+    const tokens = tokenizeExpr(str);
+    const items = [];
+    let pos = 0;
+    while (pos < tokens.length) {
+        let item;
+        [item, pos] = parseIOItem(tokens, pos);
+        items.push(item);
+        if (pos < tokens.length && tokens[pos].type === 'OP' && tokens[pos].value === ',') pos++;
+    }
+    return items;
+}
+
+function parseIOItem(tokens, pos) {
+    if (pos < tokens.length && tokens[pos].type === 'OP' && tokens[pos].value === '(') {
+        // Scan for '=' at depth 1 to detect implied DO
+        let depth = 1;
+        let equalsPos = -1;
+        for (let i = pos + 1; i < tokens.length; i++) {
+            if (tokens[i].type === 'OP' && tokens[i].value === '(') depth++;
+            else if (tokens[i].type === 'OP' && tokens[i].value === ')') {
+                depth--;
+                if (depth === 0) break;
+            } else if (tokens[i].type === 'OP' && tokens[i].value === '=' && depth === 1) {
+                equalsPos = i;
+            }
+        }
+        if (equalsPos >= 2 && tokens[equalsPos - 1].type === 'ID' &&
+            tokens[equalsPos - 2].type === 'OP' && tokens[equalsPos - 2].value === ',') {
+            return parseImpliedDo(tokens, pos, equalsPos);
+        }
+    }
+    let expr;
+    [expr, pos] = parseExpr(tokens, pos);
+    return [{ type: 'IO_EXPR', expr }, pos];
+}
+
+function parseImpliedDo(tokens, pos, equalsPos) {
+    pos++; // skip opening '('
+    const commaPos = equalsPos - 2;
+    const items = [];
+    while (pos < commaPos) {
+        let item;
+        [item, pos] = parseIOItem(tokens, pos);
+        items.push(item);
+        if (pos < commaPos && tokens[pos].type === 'OP' && tokens[pos].value === ',') pos++;
+    }
+    pos = equalsPos - 1; // DO variable
+    const varName = tokens[pos].value;
+    pos = equalsPos + 1; // skip '='
+    let start;
+    [start, pos] = parseExpr(tokens, pos);
+    if (pos < tokens.length && tokens[pos].type === 'OP' && tokens[pos].value === ',') pos++;
+    let end;
+    [end, pos] = parseExpr(tokens, pos);
+    let step = { type: 'NUM_LIT', value: 1 };
+    if (pos < tokens.length && tokens[pos].type === 'OP' && tokens[pos].value === ',') {
+        pos++;
+        [step, pos] = parseExpr(tokens, pos);
+    }
+    if (pos < tokens.length && tokens[pos].type === 'OP' && tokens[pos].value === ')') pos++;
+    return [{ type: 'IMPLIED_DO', items, varName, start, end, step }, pos];
 }
 
 function parseRead(compressed, stmt) {
@@ -661,10 +746,29 @@ function formatExponential(value, width, decimals) {
     return s.length >= width ? s : s.padStart(width, ' ');
 }
 
+function expandIOList(items, vars, arrays) {
+    const values = [];
+    for (const item of items) {
+        if (item.type === 'IO_EXPR') {
+            values.push(evalExpr(item.expr, vars, arrays));
+        } else if (item.type === 'IMPLIED_DO') {
+            const startVal = evalExpr(item.start, vars, arrays);
+            const endVal = evalExpr(item.end, vars, arrays);
+            const stepVal = evalExpr(item.step, vars, arrays);
+            for (let v = startVal; stepVal > 0 ? v <= endVal : v >= endVal; v += stepVal) {
+                vars[item.varName] = v;
+                values.push(...expandIOList(item.items, vars, arrays));
+            }
+        }
+    }
+    return values;
+}
+
 function executeWrite(node, formats, vars, arrays, output) {
     if (node.unit !== 6) return null;
     const fmt = formats[node.formatLabel];
     if (!fmt) return 'FORMAT label ' + node.formatLabel + ' not found';
+    const ioValues = expandIOList(node.ioList, vars, arrays);
     let line = '';
     let ioIdx = 0;
     for (const desc of fmt.descriptors) {
@@ -676,17 +780,22 @@ function executeWrite(node, formats, vars, arrays, output) {
         } else if (desc.type === 'X') {
             line += ' '.repeat(desc.width);
         } else if (desc.type === 'I') {
-            const val = ioIdx < node.ioList.length ? evalExpr(node.ioList[ioIdx++], vars, arrays) : 0;
+            const val = ioIdx < ioValues.length ? ioValues[ioIdx++] : 0;
             line += formatInteger(val, desc.width);
         } else if (desc.type === 'F') {
-            const val = ioIdx < node.ioList.length ? evalExpr(node.ioList[ioIdx++], vars, arrays) : 0.0;
+            const val = ioIdx < ioValues.length ? ioValues[ioIdx++] : 0.0;
             line += formatReal(val, desc.width, desc.decimals);
         } else if (desc.type === 'E') {
-            const val = ioIdx < node.ioList.length ? evalExpr(node.ioList[ioIdx++], vars, arrays) : 0.0;
+            const val = ioIdx < ioValues.length ? ioValues[ioIdx++] : 0.0;
             line += formatExponential(val, desc.width, desc.decimals);
         } else if (desc.type === 'A') {
-            const val = ioIdx < node.ioList.length ? evalExpr(node.ioList[ioIdx++], vars, arrays) : '';
-            line += String(val);
+            const val = ioIdx < ioValues.length ? ioValues[ioIdx++] : ' ';
+            const s = String(val);
+            if (desc.width) {
+                line += s.length >= desc.width ? s.substring(0, desc.width) : s.padStart(desc.width);
+            } else {
+                line += s;
+            }
         }
     }
     output.push(line);
@@ -812,6 +921,11 @@ function* executeProgram(cardTexts) {
             case 'GOTO': {
                 const target = labelIndex[node.target];
                 if (target === undefined) return { pc, cardNum: node.cardNum, nodeType: node.type, output: [...output], variables: { ...vars }, done: true, error: 'Card ' + node.cardNum + ': GOTO label ' + node.target + ' not found' };
+                while (doStack.length > 0) {
+                    const loop = doStack[doStack.length - 1];
+                    if (target < loop.loopStart || target > loop.targetIndex) doStack.pop();
+                    else break;
+                }
                 pc = target; break;
             }
 
@@ -844,6 +958,11 @@ function* executeProgram(cardTexts) {
                 const targetLabel = aval < 0 ? node.negLabel : aval === 0 ? node.zeroLabel : node.posLabel;
                 const aidx = labelIndex[targetLabel];
                 if (aidx === undefined) return { pc, cardNum: node.cardNum, nodeType: 'ARITH_IF', output: [...output], variables: { ...vars }, done: true, error: 'Card ' + node.cardNum + ': IF target label ' + targetLabel + ' not found' };
+                while (doStack.length > 0) {
+                    const loop = doStack[doStack.length - 1];
+                    if (aidx < loop.loopStart || aidx > loop.targetIndex) doStack.pop();
+                    else break;
+                }
                 pc = aidx; break;
             }
 
@@ -853,7 +972,14 @@ function* executeProgram(cardTexts) {
                     const result = executeIfBody(node, node.body, vars, arrays, formats, output, labelIndex);
                     if (result.error) return { pc, cardNum: node.cardNum, nodeType: 'IF', output: [...output], variables: { ...vars }, done: true, error: result.error };
                     if (result.stop) return { pc, cardNum: node.cardNum, nodeType: 'STOP', output: [...output], variables: { ...vars }, done: true, error: null };
-                    if (result.jump !== undefined) { pc = result.jump; break; }
+                    if (result.jump !== undefined) {
+                        while (doStack.length > 0) {
+                            const loop = doStack[doStack.length - 1];
+                            if (result.jump < loop.loopStart || result.jump > loop.targetIndex) doStack.pop();
+                            else break;
+                        }
+                        pc = result.jump; break;
+                    }
                 }
                 pc++; break;
             }

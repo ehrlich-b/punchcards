@@ -76,8 +76,12 @@
 
 ## Milestone 5: Mandelbrot (release candidate)
 
-- [ ] ASCII Mandelbrot set renderer (drawn with * chars)
-- [ ] Ship as loadable example program in library
+- [x] ASCII Mandelbrot set renderer (drawn with * chars)
+- [x] Implied DO loops in WRITE for array I/O
+- [x] Quoted string literals in expressions
+- [x] REAL vs INTEGER type tracking through expressions (isReal flag)
+- [x] DO stack cleanup on GOTO out of loop
+- [x] Ship as loadable example program in library
 
 ## Milestone 6: Subroutines (post-release)
 

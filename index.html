@@ -6,7 +6,7 @@
 <title>Punchcards</title>
 <link rel="preload" href="Keypunch029.otf" as="font" type="font/otf" crossorigin>
 <link rel="preload" href="Keypunch029-Bold.otf" as="font" type="font/otf" crossorigin>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<link rel="stylesheet" href="codemirror.min.css">
 <style>
 @font-face {
     font-family: 'Keypunch029';
@@ -588,7 +588,7 @@ body {
     <div id="output-content">READY</div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="codemirror.min.js"></script>
 <script src="fortran.js"></script>
 <script>
 // ============================================================
@@ -1630,6 +1630,44 @@ const PROGRAM_LIBRARY = [
             '   61 FORMAT(I4)\n' +
             '  100 CONTINUE\n' +
             '      STOP\n' +
+            '      END',
+        tag: 'runs',
+    },
+    {
+        name: 'Mandelbrot',
+        description: 'ASCII fractal rendered with * characters',
+        source:
+            'C     MANDELBROT SET\n' +
+            'C     ASCII RENDERING WITH * CHARACTERS\n' +
+            '      DIMENSION LINE(61)\n' +
+            '      REAL CX,CY,ZX,ZY,ZT\n' +
+            '      XMIN = -2.0\n' +
+            '      XMAX = 1.0\n' +
+            '      YMIN = -1.0\n' +
+            '      YMAX = 1.0\n' +
+            '      MAXIT = 30\n' +
+            '      DX = (XMAX-XMIN)/60.0\n' +
+            '      DY = (YMAX-YMIN)/20.0\n' +
+            '      DO 100 IY = 1,21\n' +
+            '        CY = YMAX - (IY-1)*DY\n' +
+            '        DO 90 IX = 1,61\n' +
+            '          CX = XMIN + (IX-1)*DX\n' +
+            '          ZX = 0.0\n' +
+            '          ZY = 0.0\n' +
+            '          DO 80 IT = 1,MAXIT\n' +
+            '            IF(ZX*ZX+ZY*ZY.GT.4.0)GOTO 85\n' +
+            '            ZT = ZX*ZX-ZY*ZY+CX\n' +
+            '            ZY = 2.0*ZX*ZY+CY\n' +
+            '            ZX = ZT\n' +
+            '   80     CONTINUE\n' +
+            "          LINE(IX) = '*'\n" +
+            '          GOTO 90\n' +
+            "   85     LINE(IX) = ' '\n" +
+            '   90   CONTINUE\n' +
+            '        WRITE(6,200)(LINE(J),J=1,61)\n' +
+            '  100 CONTINUE\n' +
+            '      STOP\n' +
+            '  200 FORMAT(61A1)\n' +
             '      END',
         tag: 'runs',
     },
