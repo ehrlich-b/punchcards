@@ -86,6 +86,10 @@ body {
     color: #e0e0e0;
 }
 
+#editor-panel .CodeMirror .CodeMirror-cursor {
+    border-left: 2px solid #e0e0e0;
+}
+
 #editor-panel .CodeMirror-gutters {
     background: #0f0f1f;
     border-right: 1px solid #1a1a3e;
@@ -185,8 +189,8 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 8px 16px;
-    font-family: 'IBM Plex Mono', 'Courier New', monospace;
-    font-size: 13px;
+    font-family: 'Keypunch029', 'Courier New', monospace;
+    font-size: 14px;
     background: repeating-linear-gradient(
         0deg,
         rgba(80, 200, 80, 0.03) 0px,
@@ -348,6 +352,165 @@ body {
 }
 
 .recycle-item-meta { color: #555; flex-shrink: 0; }
+
+/* --- Library button --- */
+#library-btn {
+    background: #1a2a4e;
+    border: 1px solid #0f3460;
+    color: #aaa;
+    padding: 4px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+#library-btn:hover { background: #243660; color: #e0e0e0; }
+
+/* --- Library Overlay --- */
+#library-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 10, 26, 0.95);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    overflow-y: auto;
+}
+#library-overlay.active { display: flex; }
+
+#library-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 700px;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+}
+#library-header h2 {
+    font-size: 14px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+#library-close {
+    background: none;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+}
+#library-close:hover { border-color: #888; color: #e0e0e0; }
+
+#library-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 700px;
+}
+
+.library-card {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+.library-card:hover { background: #1a2a4e; border-color: #2a5090; }
+.library-card-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 4px;
+}
+.library-card-desc {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 6px;
+}
+
+.library-card-new {
+    border-style: dashed;
+    border-color: #333;
+    background: #0f1525;
+}
+.library-card-new:hover { background: #162035; border-color: #0f3460; }
+
+/* --- Run button --- */
+#run-btn {
+    background: #2d5a27;
+    border: 1px solid #3d7a37;
+    color: #a0d0a0;
+    padding: 4px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+#run-btn:hover { background: #3d7a37; color: #c0f0c0; }
+.output-error { color: #ff6b6b; }
+
+/* --- Execution State Panel --- */
+#exec-state {
+    font-size: 12px;
+    color: #777;
+    padding-top: 8px;
+    border-top: 1px solid #1a1a3e;
+}
+
+#exec-state h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+#exec-status {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.exec-status-idle { color: #777; }
+.exec-status-running { color: #4ec9b0; }
+.exec-status-stopped { color: #dcdcaa; }
+.exec-status-error { color: #ff6b6b; }
+
+#exec-pc {
+    color: #aaa;
+    margin-bottom: 8px;
+    min-height: 16px;
+}
+
+#exec-controls {
+    display: flex;
+    gap: 6px;
+}
+
+#exec-controls button {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    color: #aaa;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+#exec-controls button:hover:not(:disabled) { background: #1a2a4e; color: #e0e0e0; }
+#exec-controls button:disabled { opacity: 0.3; cursor: default; }
+
+/* Editor execution line highlight */
+.cm-exec-line { background: rgba(78, 201, 176, 0.1) !important; }
+.cm-exec-gutter { background: rgba(78, 201, 176, 0.2) !important; }
 </style>
 </head>
 <body>
@@ -356,6 +519,8 @@ body {
     <h1>PUNCHCARDS</h1>
     <div id="header-right">
         <span id="card-count">Deck: 0 cards</span>
+        <button id="library-btn" title="Program library">LIBRARY</button>
+        <button id="run-btn" title="Run program (Ctrl+Enter)">RUN</button>
     </div>
 </div>
 
@@ -373,6 +538,16 @@ body {
             <span>Cards in deck: <span class="stat-value" id="stat-deck">0</span></span>
             <span>Total punched: <span class="stat-value" id="stat-punched">0</span></span>
             <span>Total disposed: <span class="stat-value" id="stat-disposed">0</span></span>
+        </div>
+        <div id="exec-state">
+            <h2>Execution</h2>
+            <div id="exec-status" class="exec-status-idle">IDLE</div>
+            <div id="exec-pc"></div>
+            <div id="exec-controls">
+                <button id="exec-step" title="Step one statement">STEP</button>
+                <button id="exec-run" title="Run with animation">RUN</button>
+                <button id="exec-reset" title="Reset debugger" disabled>RESET</button>
+            </div>
         </div>
     </div>
 </div>
@@ -399,12 +574,22 @@ body {
     <div id="recycle-list"></div>
 </div>
 
+<!-- Library Overlay -->
+<div id="library-overlay">
+    <div id="library-header">
+        <h2>Program Library</h2>
+        <button id="library-close">ESC Close</button>
+    </div>
+    <div id="library-grid"></div>
+</div>
+
 <div id="output-panel">
     <div id="output-header">LINE PRINTER OUTPUT</div>
     <div id="output-content">READY</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="fortran.js"></script>
 <script>
 // ============================================================
 // Hollerith Encoding Table (IBM 029 Keypunch)
@@ -570,7 +755,7 @@ function renderCard(canvas, card, displayWidth) {
     // --- Vertical branding on left side (two separate stamps) ---
     // rotate(-π/2) + textAlign 'left' = first char at translate Y, text extends UPWARD
     // "EHRLICH MAINFRAME" — large, condensed
-    const brandMainFont = Math.max(7, inch(0.12));
+    const brandMainFont = inch(0.12);
     ctx.save();
     ctx.font = `bold ${brandMainFont}px 'Courier New', monospace`;
     const mainTextWidth = ctx.measureText('EHRLICH MAINFRAME').width * 0.715;
@@ -584,7 +769,7 @@ function renderCard(canvas, card, displayWidth) {
     ctx.restore();
     // "<ehrlich.dev>" — small stamp right after MAINFRAME (continues upward)
     ctx.save();
-    ctx.font = `bold ${Math.max(4, inch(0.11))}px 'Courier New', monospace`;
+    ctx.font = `bold ${inch(0.11)}px 'Courier New', monospace`;
     ctx.fillStyle = spec.brandColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
@@ -596,7 +781,7 @@ function renderCard(canvas, card, displayWidth) {
 
     // --- Registration notches (ink blobs flush with each edge) ---
     ctx.fillStyle = spec.brandColor;
-    const notchW = snap(Math.max(3, inch(0.043)));
+    const notchW = snap(inch(0.043));
     const notchH = snap(h * 0.06);
     const notchY = snap(h * 0.75);
     ctx.fillRect(0, notchY, notchW, notchH);
@@ -607,7 +792,8 @@ function renderCard(canvas, card, displayWidth) {
 
     // --- Row digit grid ---
     // Digits must nearly touch horizontally like on real IBM 5081 stock
-    const digitFontSize = Math.max(8, inch(0.13));
+    const digitFontSize = inch(0.13);
+    if (digitFontSize < 4) { ctx.restore(); return; } // too small to render details
     ctx.font = `bold ${digitFontSize}px 'Courier New', monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -624,7 +810,7 @@ function renderCard(canvas, card, displayWidth) {
     }
 
     // --- Column numbers at top, middle (between rows 0 and 1), and bottom ---
-    const colNumFontSize = Math.max(5, inch(0.058));
+    const colNumFontSize = inch(0.058);
     ctx.font = `bold ${colNumFontSize}px 'Courier New', monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -640,7 +826,7 @@ function renderCard(canvas, card, displayWidth) {
     }
 
     // --- Bottom branding ---
-    const brandBotFontSize = Math.max(6, inch(0.075));
+    const brandBotFontSize = inch(0.075);
     ctx.font = `bold ${brandBotFontSize}px 'Courier New', monospace`;
     ctx.fillStyle = spec.brandColor;
     ctx.textAlign = 'left';
@@ -651,7 +837,7 @@ function renderCard(canvas, card, displayWidth) {
 
     // --- Printed characters from keypunch (print strip at very top) ---
     if (card) {
-        const printFontSize = Math.max(6, inch(0.13));
+        const printFontSize = inch(0.13);
         ctx.font = `bold ${printFontSize}px 'Keypunch029', 'Arial Narrow', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -916,6 +1102,7 @@ let dirtyLines = {};    // line number -> true if card is dirty (backspace happe
 let lastLineCount = 0;
 let lastCursorLine = 0;
 let suppressCursorDispose = false;
+let suppressPunchCount = false;
 
 function disposeCard(lineNum, card) {
     if (!card) return;
@@ -933,7 +1120,7 @@ function disposeCard(lineNum, card) {
 
 function punchNewCard(lineNum, text) {
     const card = createCard(text);
-    totalPunched++;
+    if (!suppressPunchCount) totalPunched++;
     return card;
 }
 
@@ -1054,6 +1241,7 @@ function handleCursorMove() {
 }
 
 function renderCurrentCard() {
+    if (typeof debugStatus !== 'undefined' && debugStatus !== 'idle') return;
     const canvas = document.getElementById('card-canvas');
     const label = document.getElementById('card-label');
     if (deck.length > 0) {
@@ -1077,6 +1265,7 @@ function updateUI() {
 
 // Wire editor to card punching
 editor.on('change', function(cm, changeObj) {
+    if (typeof debugStatus !== 'undefined' && debugStatus !== 'idle') debugReset();
     syncDeck(changeObj);
     scheduleSave();
 });
@@ -1198,11 +1387,18 @@ function escapeHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function viewerIsOpen() {
+    return document.getElementById('card-viewer').classList.contains('active');
+}
+
 function openViewer(mode, index) {
     viewerMode = mode || 'deck';
     if (typeof index === 'number') {
         if (viewerMode === 'deck') viewerIndex = index;
         else viewerRecycleIndex = index;
+    }
+    if (!viewerIsOpen()) {
+        history.pushState({ viewer: true }, '');
     }
     document.getElementById('card-viewer').classList.add('active');
     updateViewerTabs();
@@ -1210,8 +1406,15 @@ function openViewer(mode, index) {
 }
 
 function closeViewer() {
-    document.getElementById('card-viewer').classList.remove('active');
+    if (viewerIsOpen()) {
+        history.back();
+    }
 }
+
+// Browser back button closes the viewer
+window.addEventListener('popstate', function() {
+    document.getElementById('card-viewer').classList.remove('active');
+});
 
 function updateViewerTabs() {
     document.querySelectorAll('.viewer-tab').forEach(tab => {
@@ -1306,6 +1509,356 @@ function showColumnDetail(e) {
 }
 
 // ============================================================
+// Program Library
+// ============================================================
+const PROGRAM_LIBRARY = [
+    {
+        name: 'New Deck',
+        description: 'Start with a blank deck',
+        source: '',
+        tag: null,
+    },
+    {
+        name: 'Hello World',
+        description: 'Classic first program',
+        source:
+            'C     HELLO WORLD\n' +
+            '      WRITE(6,10)\n' +
+            '   10 FORMAT(12HHELLO WORLD!)\n' +
+            '      STOP\n' +
+            '      END',
+        tag: 'runs',
+    },
+    {
+        name: 'Banner',
+        description: 'Multi-line ASCII art via Hollerith constants',
+        source:
+            'C     BANNER OUTPUT\n' +
+            '      WRITE(6,10)\n' +
+            '   10 FORMAT(40H****************************************/\n' +
+            '     X40H*                                      */\n' +
+            '     X40H*        IBM SYSTEM/360 MODEL 30       */\n' +
+            '     X40H*                                      */\n' +
+            '     X40H*     FORTRAN IV COMPILER READY        */\n' +
+            '     X40H*                                      */\n' +
+            '     X40H****************************************)\n' +
+            '      STOP\n' +
+            '      END',
+        tag: 'runs',
+    },
+    {
+        name: 'Rocket',
+        description: 'ASCII rocket ship with FORMAT slash newlines',
+        source:
+            'C     ASCII ROCKET\n' +
+            '      WRITE(6,10)\n' +
+            "   10 FORMAT('    /\\    '/\n" +
+            "     X'   /  \\   '/\n" +
+            "     X'  /    \\  '/\n" +
+            "     X' |      | '/\n" +
+            "     X' | NASA | '/\n" +
+            "     X' |      | '/\n" +
+            "     X'  \\    /  '/\n" +
+            "     X'   \\  /   '/\n" +
+            "     X'   /  \\   '/\n" +
+            "     X'  / /\\ \\  '/\n" +
+            "     X' / /  \\ \\ '/\n" +
+            "     X' | |  | | '/\n" +
+            "     X'  \\|  |/  '/\n" +
+            "     X'   +--+   ')\n" +
+            '      STOP\n' +
+            '      END',
+        tag: 'runs',
+    },
+    {
+        name: 'Fibonacci',
+        description: 'First 20 Fibonacci numbers via DO loop',
+        source:
+            'C     FIBONACCI SEQUENCE\n' +
+            '      INTEGER A,B,C\n' +
+            '      A = 0\n' +
+            '      B = 1\n' +
+            '      WRITE(6,5)\n' +
+            '    5 FORMAT(20HFIBONACCI SEQUENCE: )\n' +
+            '      DO 10 I=1,20\n' +
+            '      WRITE(6,20) I, A\n' +
+            '   20 FORMAT(I4,I10)\n' +
+            '      C = A + B\n' +
+            '      A = B\n' +
+            '      B = C\n' +
+            '   10 CONTINUE\n' +
+            '      STOP\n' +
+            '      END',
+        tag: 'runs',
+    },
+    {
+        name: 'Temperature Table',
+        description: 'Fahrenheit to Celsius conversion table',
+        source:
+            'C     TEMPERATURE CONVERSION TABLE\n' +
+            '      WRITE(6,5)\n' +
+            '    5 FORMAT(22HFAHRENHEIT    CELSIUS )\n' +
+            '      DO 10 IF=32,212,10\n' +
+            '      F = IF\n' +
+            '      C = (F - 32.0) * 5.0 / 9.0\n' +
+            '      WRITE(6,20) IF, C\n' +
+            '   20 FORMAT(I6,F14.1)\n' +
+            '   10 CONTINUE\n' +
+            '      STOP\n' +
+            '      END',
+        tag: 'runs',
+    },
+    {
+        name: 'FizzBuzz',
+        description: 'Classic interview problem with IF/GOTO',
+        source:
+            'C     FIZZBUZZ 1 TO 30\n' +
+            '      DO 100 I=1,30\n' +
+            '      IF (I - (I/15)*15) 20,10,20\n' +
+            '   10 WRITE(6,11)\n' +
+            '   11 FORMAT(8HFIZZBUZZ)\n' +
+            '      GO TO 100\n' +
+            '   20 IF (I - (I/3)*3) 40,30,40\n' +
+            '   30 WRITE(6,31)\n' +
+            '   31 FORMAT(4HFIZZ)\n' +
+            '      GO TO 100\n' +
+            '   40 IF (I - (I/5)*5) 60,50,60\n' +
+            '   50 WRITE(6,51)\n' +
+            '   51 FORMAT(4HBUZZ)\n' +
+            '      GO TO 100\n' +
+            '   60 WRITE(6,61) I\n' +
+            '   61 FORMAT(I4)\n' +
+            '  100 CONTINUE\n' +
+            '      STOP\n' +
+            '      END',
+        tag: 'runs',
+    },
+];
+
+function libraryIsOpen() {
+    return document.getElementById('library-overlay').classList.contains('active');
+}
+
+function openLibrary() {
+    document.getElementById('library-overlay').classList.add('active');
+}
+
+function closeLibrary() {
+    document.getElementById('library-overlay').classList.remove('active');
+}
+
+function loadProgram(source) {
+    const current = editor.getValue();
+    suppressPunchCount = true;
+    suppressCursorDispose = true;
+    editor.setValue(source);
+    suppressCursorDispose = false;
+    suppressPunchCount = false;
+    closeLibrary();
+    scheduleSave();
+}
+
+function buildLibraryGrid() {
+    const grid = document.getElementById('library-grid');
+    grid.innerHTML = '';
+    for (const prog of PROGRAM_LIBRARY) {
+        const card = document.createElement('div');
+        card.className = 'library-card' + (prog.tag === null ? ' library-card-new' : '');
+        let html = '<div class="library-card-name">' + escapeHtml(prog.name) + '</div>';
+        html += '<div class="library-card-desc">' + escapeHtml(prog.description) + '</div>';
+        card.innerHTML = html;
+        card.addEventListener('click', () => loadProgram(prog.source));
+        grid.appendChild(card);
+    }
+}
+
+document.getElementById('library-btn').addEventListener('click', openLibrary);
+document.getElementById('library-close').addEventListener('click', closeLibrary);
+
+document.addEventListener('keydown', function(e) {
+    if (!libraryIsOpen()) return;
+    if (e.key === 'Escape') { closeLibrary(); e.preventDefault(); }
+});
+
+buildLibraryGrid();
+
+// ============================================================
+// Run Program
+// ============================================================
+function runDeck() {
+    if (typeof debugStatus !== 'undefined' && debugStatus !== 'idle') debugReset();
+    const cardTexts = deck.map(c => c.text);
+    const result = runProgram(cardTexts);
+    const outputEl = document.getElementById('output-content');
+
+    if (result.error) {
+        let html = '';
+        if (result.output.length > 0) {
+            html += escapeHtml(result.output.join('\n')) + '\n';
+        }
+        html += '<span class="output-error">*** ' + escapeHtml(result.error) + ' ***</span>';
+        outputEl.innerHTML = html;
+    } else if (result.output.length > 0) {
+        outputEl.textContent = result.output.join('\n');
+    } else {
+        outputEl.textContent = 'READY';
+    }
+
+    scheduleSave();
+}
+
+document.getElementById('run-btn').addEventListener('click', runDeck);
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runDeck();
+    }
+});
+
+// ============================================================
+// Stepping Debugger
+// ============================================================
+let debugGen = null;
+let debugState = null;
+let debugStatus = 'idle';
+let debugTimer = null;
+let debugHighlightLine = -1;
+
+function debugStep() {
+    if (debugStatus === 'idle') {
+        const cardTexts = deck.map(c => c.text);
+        debugGen = executeProgram(cardTexts);
+    }
+    if (debugStatus === 'running') return;
+    if (debugState && debugState.done) return;
+
+    const step = debugGen.next();
+    debugState = step.value;
+
+    if (step.done) {
+        debugStatus = debugState && debugState.error ? 'error' : 'stopped';
+        clearDebugHighlight();
+    } else {
+        debugStatus = 'stopped';
+        updateDebugHighlight();
+    }
+
+    updateDebugUI();
+    updateDebugOutput();
+}
+
+function debugRun() {
+    if (debugStatus === 'idle') {
+        const cardTexts = deck.map(c => c.text);
+        debugGen = executeProgram(cardTexts);
+    }
+    if (debugState && debugState.done) return;
+    debugStatus = 'running';
+    updateDebugUI();
+    debugTick();
+}
+
+function debugTick() {
+    if (debugStatus !== 'running' || !debugGen) return;
+
+    const step = debugGen.next();
+    debugState = step.value;
+
+    if (step.done) {
+        debugStatus = debugState && debugState.error ? 'error' : 'stopped';
+        clearDebugHighlight();
+        updateDebugUI();
+        updateDebugOutput();
+        return;
+    }
+
+    updateDebugHighlight();
+    updateDebugUI();
+    updateDebugOutput();
+    debugTimer = setTimeout(debugTick, 400);
+}
+
+function debugReset() {
+    if (debugTimer) { clearTimeout(debugTimer); debugTimer = null; }
+    debugGen = null;
+    debugState = null;
+    debugStatus = 'idle';
+    clearDebugHighlight();
+    updateDebugUI();
+    renderCurrentCard();
+    document.getElementById('output-content').textContent = 'READY';
+}
+
+function clearDebugHighlight() {
+    if (debugHighlightLine >= 0) {
+        editor.removeLineClass(debugHighlightLine, 'background', 'cm-exec-line');
+        editor.removeLineClass(debugHighlightLine, 'gutter', 'cm-exec-gutter');
+        debugHighlightLine = -1;
+    }
+}
+
+function updateDebugHighlight() {
+    clearDebugHighlight();
+    if (debugState && !debugState.done && debugState.cardNum > 0) {
+        const line = debugState.cardNum - 1;
+        editor.addLineClass(line, 'background', 'cm-exec-line');
+        editor.addLineClass(line, 'gutter', 'cm-exec-gutter');
+        debugHighlightLine = line;
+        // Show executing card in card panel
+        const canvas = document.getElementById('card-canvas');
+        const label = document.getElementById('card-label');
+        if (line < deck.length) {
+            renderCard(canvas, deck[line], 380);
+            label.textContent = 'Card ' + (line + 1) + ' of ' + deck.length;
+        }
+    }
+}
+
+function updateDebugUI() {
+    const statusEl = document.getElementById('exec-status');
+    const pcEl = document.getElementById('exec-pc');
+
+    statusEl.textContent = debugStatus.toUpperCase();
+    statusEl.className = 'exec-status-' + debugStatus;
+
+    if (debugState && !debugState.done) {
+        pcEl.textContent = 'Card ' + debugState.cardNum + ' \u2014 ' + debugState.nodeType;
+    } else if (debugState && debugState.done) {
+        pcEl.textContent = debugState.error || 'COMPLETE';
+    } else {
+        pcEl.textContent = '';
+    }
+
+    const isDone = debugState && debugState.done;
+    const isRunning = debugStatus === 'running';
+    document.getElementById('exec-step').disabled = isRunning || isDone;
+    document.getElementById('exec-run').disabled = isRunning || isDone;
+    document.getElementById('exec-reset').disabled = (debugStatus === 'idle');
+}
+
+function updateDebugOutput() {
+    if (!debugState) return;
+    const outputEl = document.getElementById('output-content');
+
+    if (debugState.error) {
+        let html = '';
+        if (debugState.output.length > 0) {
+            html += escapeHtml(debugState.output.join('\n')) + '\n';
+        }
+        html += '<span class="output-error">*** ' + escapeHtml(debugState.error) + ' ***</span>';
+        outputEl.innerHTML = html;
+    } else if (debugState.output.length > 0) {
+        outputEl.textContent = debugState.output.join('\n');
+    } else {
+        outputEl.textContent = '';
+    }
+}
+
+document.getElementById('exec-step').addEventListener('click', debugStep);
+document.getElementById('exec-run').addEventListener('click', debugRun);
+document.getElementById('exec-reset').addEventListener('click', debugReset);
+
+// ============================================================
 // localStorage Persistence
 // ============================================================
 const STORAGE_PREFIX = 'punchcards:';
@@ -1341,6 +1894,7 @@ function loadState() {
         const stats = localStorage.getItem(STORAGE_PREFIX + 'stats');
         const recycled = localStorage.getItem(STORAGE_PREFIX + 'recyclebin');
 
+        suppressPunchCount = true;
         if (source !== null) {
             suppressCursorDispose = true;
             editor.setValue(source);
@@ -1355,6 +1909,7 @@ function loadState() {
             editor.setValue("C     HELLO WORLD\n      WRITE(6,10)\n   10 FORMAT(12HHELLO WORLD!)\n      STOP\n      END");
             suppressCursorDispose = false;
         }
+        suppressPunchCount = false;
 
         if (stats) {
             const parsed = JSON.parse(stats);
@@ -1372,9 +1927,11 @@ function loadState() {
         }
     } catch (e) {
         // Corrupted state — start fresh
+        suppressPunchCount = true;
         suppressCursorDispose = true;
         editor.setValue("C     HELLO WORLD\n      WRITE(6,10)\n   10 FORMAT(12HHELLO WORLD!)\n      STOP\n      END");
         suppressCursorDispose = false;
+        suppressPunchCount = false;
     }
 
     lastCursorLine = editor.getCursor().line;

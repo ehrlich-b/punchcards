@@ -41,40 +41,45 @@
 
 ## Milestone 2: Hello World (FORTRAN runs)
 
-- [ ] Lexer: tokenize FORTRAN IV fixed-format source (handle column rules)
-- [ ] Parser: build AST for WRITE, FORMAT, STOP, END, comments
-- [ ] FORMAT descriptor parser: Hollerith constants (nHtext), A descriptors
-- [ ] Statement label resolution
-- [ ] Continuation card handling (col 6)
-- [ ] Interpreter: walk AST and execute
-- [ ] Line printer output panel (green-bar paper aesthetic)
-- [ ] Run button: feed deck to interpreter, display output
-- [ ] Error display: syntax errors with card/column numbers
-- [ ] Ship "Hello World" as a loadable example program
+- [x] Lexer: tokenize FORTRAN IV fixed-format source (handle column rules)
+- [x] Parser: build AST for WRITE, FORMAT, STOP, END, comments
+- [x] FORMAT descriptor parser: Hollerith constants (nHtext), A descriptors
+- [x] Statement label resolution
+- [x] Continuation card handling (col 6)
+- [x] Interpreter: walk AST and execute
+- [x] Line printer output panel (green-bar paper aesthetic)
+- [x] Run button: feed deck to interpreter, display output
+- [x] Error display: syntax errors with card/column numbers
+- [x] Ship "Hello World" as a loadable example program
 
 ## Milestone 3: Fibonacci (arithmetic + loops)
 
-- [ ] Expression parser: arithmetic with correct precedence (+, -, *, /, **)
-- [ ] INTEGER / REAL declarations + implicit typing (I-N rule)
-- [ ] Assignment statements
-- [ ] DO loops (DO label var = start, end / CONTINUE)
-- [ ] Logical IF (IF (expr) statement)
-- [ ] GOTO
-- [ ] FORMAT descriptors: Iw, Fw.d, wX, /
-- [ ] WRITE with variable lists
-- [ ] Type coercion (integer <-> real)
-- [ ] Ship Fibonacci + Factorial as loadable examples
+- [x] Expression parser: arithmetic with correct precedence (+, -, *, /, **)
+- [x] INTEGER / REAL declarations + implicit typing (I-N rule)
+- [x] Assignment statements
+- [x] DO loops (DO label var = start, end / CONTINUE)
+- [x] Logical IF (IF (expr) statement)
+- [x] GOTO
+- [x] FORMAT descriptors: Iw, Fw.d, wX, /
+- [x] WRITE with variable lists
+- [x] Type coercion (integer <-> real)
+- [x] Ship Fibonacci + Factorial as loadable examples
 
 ## Milestone 4: Richer programs
 
-- [ ] Arithmetic IF (three-way branch)
-- [ ] READ(unit, label) with user input prompt
-- [ ] DIMENSION (arrays)
-- [ ] Relational operators (.GT., .LT., .EQ., .NE., .GE., .LE.)
-- [ ] Logical operators (.AND., .OR., .NOT.)
-- [ ] FORMAT: Ew.d, repeat counts
+- [x] Arithmetic IF (three-way branch)
+- [x] READ(unit, label) with user input prompt
+- [x] DIMENSION (arrays)
+- [x] Relational operators (.GT., .LT., .EQ., .NE., .GE., .LE.)
+- [x] Logical operators (.AND., .OR., .NOT.)
+- [x] FORMAT: Ew.d, repeat counts
 
-## Milestone 5: Subroutines
+## Milestone 5: Mandelbrot (release candidate)
+
+- [ ] ASCII Mandelbrot set renderer (drawn with * chars)
+- [ ] Ship as loadable example program in library
+
+## Milestone 6: Subroutines (post-release)
 
 - [ ] SUBROUTINE / CALL / RETURN
 - [ ] FUNCTION
