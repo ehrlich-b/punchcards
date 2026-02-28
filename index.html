@@ -729,7 +729,7 @@ const CARD_SPEC = {
     regBarColor: '#B39780',
 };
 
-function renderCard(canvas, card, displayWidth) {
+function renderCard(canvas, card, displayWidth, highlightCol) {
     displayWidth = displayWidth || 380;
     const spec = CARD_SPEC;
     const aspectRatio = spec.cardWidth / spec.cardHeight;
@@ -921,6 +921,17 @@ function renderCard(canvas, card, displayWidth) {
                 }
             }
         }
+    }
+
+    // --- Column highlight overlay ---
+    if (highlightCol >= 0 && highlightCol < 80) {
+        const hx = inch(spec.leftMargin + highlightCol * spec.colPitch) - inch(spec.colPitch / 2);
+        const hw = inch(spec.colPitch);
+        ctx.fillStyle = 'rgba(78, 201, 176, 0.12)';
+        ctx.fillRect(snap(hx), 0, snap(hw), h);
+        ctx.strokeStyle = 'rgba(78, 201, 176, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(snap(hx), 0, snap(hw), h);
     }
 
     ctx.restore(); // un-clip
@@ -1505,9 +1516,40 @@ document.addEventListener('keydown', function(e) {
 document.getElementById('viewer-canvas').addEventListener('mousemove', function(e) {
     showColumnDetail(e);
 });
+document.getElementById('viewer-canvas').addEventListener('mouseleave', function() {
+    if (viewerHighlightCol >= 0) {
+        viewerHighlightCol = -1;
+        const canvas = document.getElementById('viewer-canvas');
+        const card = getViewerCard();
+        renderCard(canvas, card, VIEWER_WIDTH);
+        document.getElementById('viewer-col-detail').textContent = '';
+    }
+});
 document.getElementById('viewer-canvas').addEventListener('click', function(e) {
     showColumnDetail(e);
 });
+
+let viewerHighlightCol = -1;
+
+function fortranField(col1) {
+    if (col1 === 1) return 'Comment/Label';
+    if (col1 >= 1 && col1 <= 5) return 'Label';
+    if (col1 === 6) return 'Continuation';
+    if (col1 >= 7 && col1 <= 72) return 'Statement';
+    return 'Sequence';
+}
+
+function zoneDigitBreakdown(punchedRows) {
+    if (punchedRows.length === 0) return '';
+    const zones = [];
+    const digits = [];
+    for (let i = 0; i < punchedRows.length; i++) {
+        const r = punchedRows[i];
+        if (r === 12 || r === 11 || r === 0) zones.push('Zone ' + r);
+        else digits.push('Digit ' + r);
+    }
+    return zones.concat(digits).join(' + ');
+}
 
 function showColumnDetail(e) {
     const canvas = document.getElementById('viewer-canvas');
@@ -1520,6 +1562,11 @@ function showColumnDetail(e) {
     const colFloat = (inchX - CARD_SPEC.leftMargin) / CARD_SPEC.colPitch;
     const col = Math.round(colFloat);
     if (col < 0 || col >= 80) {
+        if (viewerHighlightCol >= 0) {
+            viewerHighlightCol = -1;
+            const card = getViewerCard();
+            renderCard(canvas, card, VIEWER_WIDTH);
+        }
         document.getElementById('viewer-col-detail').textContent = '';
         return;
     }
@@ -1527,19 +1574,28 @@ function showColumnDetail(e) {
     const card = getViewerCard();
     if (!card) return;
 
+    // Re-render with highlight if column changed
+    if (col !== viewerHighlightCol) {
+        viewerHighlightCol = col;
+        renderCard(canvas, card, VIEWER_WIDTH, col);
+    }
+
+    const col1 = col + 1;
     const ch = col < card.text.length ? card.text[col].toUpperCase() : ' ';
     const punchedRows = [];
     for (let ri = 0; ri < 12; ri++) {
         if (card.columns[col][ri]) punchedRows.push(ROW_ORDER[ri]);
     }
 
-    let detail = 'Col ' + (col + 1) + ': ';
+    const field = fortranField(col1);
+    let detail = 'Col ' + col1 + ' [' + field + ']: ';
     if (ch === ' ' && punchedRows.length === 0) {
         detail += '(blank)';
     } else {
         detail += "'" + ch + "'";
         if (punchedRows.length > 0) {
-            detail += '  ->  rows ' + punchedRows.join(', ');
+            const breakdown = zoneDigitBreakdown(punchedRows);
+            detail += '  =  ' + breakdown;
         }
     }
     document.getElementById('viewer-col-detail').textContent = detail;
