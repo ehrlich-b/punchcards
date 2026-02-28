@@ -517,6 +517,28 @@ body {
 #exec-controls button:hover:not(:disabled) { background: #1a2a4e; color: #e0e0e0; }
 #exec-controls button:disabled { opacity: 0.3; cursor: default; }
 
+#exec-speed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+#exec-speed label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #777;
+}
+#exec-speed-slider {
+    width: 100px;
+    accent-color: #4ec9b0;
+}
+#exec-speed-label {
+    font-size: 11px;
+    color: #aaa;
+}
+
 /* Editor execution line highlight */
 .cm-exec-line { background: rgba(78, 201, 176, 0.1) !important; }
 .cm-exec-gutter { background: rgba(78, 201, 176, 0.2) !important; }
@@ -556,6 +578,11 @@ body {
                 <button id="exec-step" title="Step one statement">STEP</button>
                 <button id="exec-run" title="Run with animation">RUN</button>
                 <button id="exec-reset" title="Reset debugger" disabled>RESET</button>
+            </div>
+            <div id="exec-speed">
+                <label>SPEED</label>
+                <input type="range" id="exec-speed-slider" min="1" max="100" value="10">
+                <span id="exec-speed-label">10 lines/sec</span>
             </div>
         </div>
     </div>
@@ -1771,6 +1798,24 @@ let debugState = null;
 let debugStatus = 'idle';
 let debugTimer = null;
 let debugHighlightLine = -1;
+let lastCardRenderTime = 0;
+
+function getExecDelay() {
+    return 1000 / parseInt(document.getElementById('exec-speed-slider').value, 10);
+}
+
+(function initExecSpeed() {
+    const saved = localStorage.getItem('punchcards:execSpeed');
+    if (saved) {
+        const slider = document.getElementById('exec-speed-slider');
+        slider.value = saved;
+        document.getElementById('exec-speed-label').textContent = saved + ' lines/sec';
+    }
+    document.getElementById('exec-speed-slider').addEventListener('input', function() {
+        document.getElementById('exec-speed-label').textContent = this.value + ' lines/sec';
+        localStorage.setItem('punchcards:execSpeed', this.value);
+    });
+})();
 
 function debugStep() {
     if (debugStatus === 'idle') {
@@ -1788,7 +1833,7 @@ function debugStep() {
         clearDebugHighlight();
     } else {
         debugStatus = 'stopped';
-        updateDebugHighlight();
+        updateDebugHighlight(true);
     }
 
     updateDebugUI();
@@ -1799,6 +1844,14 @@ function debugRun() {
     if (debugStatus === 'idle') {
         const cardTexts = deck.map(c => c.text);
         debugGen = executeProgram(cardTexts);
+    } else if (debugStatus === 'stopped') {
+        // Resume from paused state
+    } else if (debugStatus === 'running') {
+        // Pause
+        debugStatus = 'stopped';
+        clearTimeout(debugTimer);
+        updateDebugUI();
+        return;
     }
     if (debugState && debugState.done) return;
     debugStatus = 'running';
@@ -1814,16 +1867,23 @@ function debugTick() {
 
     if (step.done) {
         debugStatus = debugState && debugState.error ? 'error' : 'stopped';
+        // Final card render before clearing highlight
+        const canvas = document.getElementById('card-canvas');
+        const label = document.getElementById('card-label');
+        if (debugHighlightLine >= 0 && debugHighlightLine < deck.length) {
+            renderCard(canvas, deck[debugHighlightLine], 380);
+            label.textContent = 'Card ' + (debugHighlightLine + 1) + ' of ' + deck.length;
+        }
         clearDebugHighlight();
         updateDebugUI();
         updateDebugOutput();
         return;
     }
 
-    updateDebugHighlight();
+    updateDebugHighlight(false);
     updateDebugUI();
     updateDebugOutput();
-    debugTimer = setTimeout(debugTick, 400);
+    debugTimer = setTimeout(debugTick, getExecDelay());
 }
 
 function debugReset() {
@@ -1845,19 +1905,23 @@ function clearDebugHighlight() {
     }
 }
 
-function updateDebugHighlight() {
+function updateDebugHighlight(forceRender) {
     clearDebugHighlight();
     if (debugState && !debugState.done && debugState.cardNum > 0) {
         const line = debugState.cardNum - 1;
         editor.addLineClass(line, 'background', 'cm-exec-line');
         editor.addLineClass(line, 'gutter', 'cm-exec-gutter');
         debugHighlightLine = line;
-        // Show executing card in card panel
-        const canvas = document.getElementById('card-canvas');
-        const label = document.getElementById('card-label');
-        if (line < deck.length) {
-            renderCard(canvas, deck[line], 380);
-            label.textContent = 'Card ' + (line + 1) + ' of ' + deck.length;
+        // Show executing card in card panel (debounced during RUN)
+        const now = performance.now();
+        if (forceRender || now - lastCardRenderTime >= 100) {
+            const canvas = document.getElementById('card-canvas');
+            const label = document.getElementById('card-label');
+            if (line < deck.length) {
+                renderCard(canvas, deck[line], 380);
+                label.textContent = 'Card ' + (line + 1) + ' of ' + deck.length;
+            }
+            lastCardRenderTime = now;
         }
     }
 }
@@ -1880,7 +1944,9 @@ function updateDebugUI() {
     const isDone = debugState && debugState.done;
     const isRunning = debugStatus === 'running';
     document.getElementById('exec-step').disabled = isRunning || isDone;
-    document.getElementById('exec-run').disabled = isRunning || isDone;
+    const runBtn = document.getElementById('exec-run');
+    runBtn.disabled = isDone;
+    runBtn.textContent = isRunning ? 'PAUSE' : 'RUN';
     document.getElementById('exec-reset').disabled = (debugStatus === 'idle');
 }
 
