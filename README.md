@@ -1,6 +1,6 @@
 # Punchcards
 
-A browser-based IBM punch card simulator with a working FORTRAN IV interpreter. Type code, watch cards get punched in real-time, and run programs on a simulated IBM System/360.
+A browser-based IBM punch card simulator with a working FORTRAN IV interpreter.
 
 **Live:** [punch.ehrlich.dev](https://punch.ehrlich.dev)
 
@@ -8,22 +8,7 @@ A browser-based IBM punch card simulator with a working FORTRAN IV interpreter. 
 
 ![Punchcards IDE](screenshot-ide.png)
 
-## Features
-
-- **Punch card renderer** -- canvas-based IBM 5081 cards with Hollerith encoding, chamfered corners, print strip, and column/row markings
-- **Code editor** -- CodeMirror with FORTRAN IV syntax highlighting and column 72 guide
-- **Real-time punching** -- cards update as you type, with hole animations and dirty-card tracking
-- **FORTRAN IV interpreter** -- expressions, DO loops, IF/GOTO, arithmetic IF, arrays, relational and logical operators
-- **Stepping debugger** -- step through execution one statement at a time
-- **Line printer output** -- green-bar paper aesthetic with dot-matrix font
-- **Program library** -- example programs: Hello World, Fibonacci, Temperature Table, FizzBuzz, and more
-- **Card viewer** -- click any card to inspect it full-size with column detail on hover
-- **Recycle bin** -- disposed cards are saved for inspection
-- **Persistence** -- auto-saves to localStorage, restores on reload
-
-## Tech
-
-Pure HTML, CSS, and JS. No frameworks, no build step, no npm. Single `index.html` plus `fortran.js` for the interpreter. Hosted as a static site.
+You type FORTRAN in the editor, cards get punched in real-time on the right, and you can run the program on a simulated System/360. Output appears on a line printer at the bottom. The whole thing is a single `index.html` plus `fortran.js` for the interpreter - no frameworks, no build step.
 
 ## Run locally
 
@@ -31,24 +16,14 @@ Pure HTML, CSS, and JS. No frameworks, no build step, no npm. Single `index.html
 python3 -m http.server 8029
 ```
 
-Then open [http://localhost:8029](http://localhost:8029).
+Then open [http://localhost:8029](http://localhost:8029). Port 8029 for the IBM 029 keypunch.
 
-## FORTRAN IV support
+## What works
 
-The interpreter implements a subset of FORTRAN IV (FORTRAN 66) as it ran on the IBM System/360:
+The interpreter handles a decent subset of FORTRAN IV (FORTRAN 66): WRITE/FORMAT with Hollerith constants and quoted strings, Iw/Fw.d/Ew.d/wX format descriptors with repeat counts, INTEGER/REAL with implicit typing (I-N rule), assignments, arithmetic expressions, DO loops, logical and arithmetic IF, GOTO, relational operators (.GT. through .LE.), logical operators (.AND./.OR./.NOT.), DIMENSION arrays, and READ from the card reader.
 
-| Feature | Status |
-|---|---|
-| WRITE / FORMAT | Done |
-| Hollerith constants, quoted strings | Done |
-| Iw, Fw.d, Ew.d, wX, repeat counts | Done |
-| INTEGER / REAL / implicit typing | Done |
-| Assignments, expressions (+, -, *, /, **) | Done |
-| DO loops / CONTINUE | Done |
-| Logical IF, arithmetic IF, GOTO | Done |
-| .GT. .LT. .EQ. .NE. .GE. .LE. | Done |
-| .AND. .OR. .NOT. | Done |
-| DIMENSION (arrays) | Done |
-| READ (card reader input) | Done |
-| SUBROUTINE / FUNCTION | Planned |
-| COMMON / DATA | Planned |
+SUBROUTINE/FUNCTION and COMMON/DATA aren't implemented yet.
+
+There's a program library with example programs - Fibonacci, FizzBuzz, a temperature conversion table, an ASCII rocket. A stepping debugger lets you walk through execution one statement at a time.
+
+Cards track state the way real keypunches did. Backspace marks a card dirty; navigating away disposes it to a recycle bin and punches a fresh one. Stats track cards in deck, total punched, and total disposed.
