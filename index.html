@@ -4,8 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Punchcards</title>
+<link rel="preload" href="Keypunch029.otf" as="font" type="font/otf" crossorigin>
+<link rel="preload" href="Keypunch029-Bold.otf" as="font" type="font/otf" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
 <style>
+@font-face {
+    font-family: 'Keypunch029';
+    src: url('Keypunch029.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Keypunch029';
+    src: url('Keypunch029-Bold.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -609,24 +623,25 @@ function renderCard(canvas, card, displayWidth) {
         }
     }
 
-    // --- Column numbers at top and bottom ---
-    const colNumFontSize = Math.max(4, inch(0.042));
-    ctx.font = `${colNumFontSize}px 'Courier New', monospace`;
+    // --- Column numbers at top, middle (between rows 0 and 1), and bottom ---
+    const colNumFontSize = Math.max(5, inch(0.058));
+    ctx.font = `bold ${colNumFontSize}px 'Courier New', monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = spec.colNumColor;
-    const colNumTopY = snap(inch(spec.topMargin - spec.rowPitch * 0.55));
+    // Between row 0 (ri=2) and row 1 (ri=3): midpoint of those two row positions
+    const colNumMidY = snap(inch(spec.topMargin + 2.5 * spec.rowPitch));
     const colNumBotY = snap(inch(spec.topMargin + 11 * spec.rowPitch + spec.rowPitch * 0.42));
     for (let c = 0; c < 80; c++) {
         const x = snap(inch(spec.leftMargin + c * spec.colPitch));
         const label = String(c + 1);
-        ctx.fillText(label, x, colNumTopY);
+        ctx.fillText(label, x, colNumMidY);
         ctx.fillText(label, x, colNumBotY);
     }
 
     // --- Bottom branding ---
-    const brandBotFontSize = Math.max(5, inch(0.042));
-    ctx.font = `${brandBotFontSize}px 'Courier New', monospace`;
+    const brandBotFontSize = Math.max(6, inch(0.075));
+    ctx.font = `bold ${brandBotFontSize}px 'Courier New', monospace`;
     ctx.fillStyle = spec.brandColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
@@ -636,17 +651,21 @@ function renderCard(canvas, card, displayWidth) {
 
     // --- Printed characters from keypunch (print strip at very top) ---
     if (card) {
-        const printFontSize = Math.max(6, inch(0.075));
-        ctx.font = `bold ${printFontSize}px 'Courier New', monospace`;
+        const printFontSize = Math.max(6, inch(0.13));
+        ctx.font = `bold ${printFontSize}px 'Keypunch029', 'Arial Narrow', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = spec.printColor;
+        ctx.fillStyle = 'rgba(100, 85, 65, 0.55)';
         for (let c = 0; c < card.text.length; c++) {
             const ch = card.text[c];
             if (ch && ch !== ' ') {
                 const x = snap(inch(spec.leftMargin + c * spec.colPitch));
                 const y = snap(inch(spec.printY));
-                ctx.fillText(ch.toUpperCase(), x, y);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(1, 1.1);
+                ctx.fillText(ch.toUpperCase(), 0, 0);
+                ctx.restore();
             }
         }
     }
@@ -1371,7 +1390,10 @@ window.addEventListener('beforeunload', function() {
 // ============================================================
 // Boot
 // ============================================================
-loadState();
+Promise.all([
+    new FontFace('Keypunch029', 'url(Keypunch029.otf)').load().then(f => document.fonts.add(f)),
+    new FontFace('Keypunch029', 'url(Keypunch029-Bold.otf)', { weight: 'bold' }).load().then(f => document.fonts.add(f)),
+]).then(() => loadState()).catch(() => loadState());
 
 </script>
 </body>

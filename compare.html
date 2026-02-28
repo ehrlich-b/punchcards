@@ -3,7 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <title>Card Comparison</title>
+<link rel="preload" href="Keypunch029.otf" as="font" type="font/otf" crossorigin>
+<link rel="preload" href="Keypunch029-Bold.otf" as="font" type="font/otf" crossorigin>
 <style>
+@font-face {
+    font-family: 'Keypunch029';
+    src: url('Keypunch029.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Keypunch029';
+    src: url('Keypunch029-Bold.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+}
 body {
     background: #222;
     color: #ccc;
@@ -201,23 +215,23 @@ function renderCard(canvas, card, displayWidth) {
         }
     }
 
-    // Column numbers
-    const colNumFontSize = Math.max(4, inch(0.042));
-    ctx.font = `${colNumFontSize}px 'Courier New', monospace`;
+    // Column numbers at top, middle (between rows 0 and 1), and bottom
+    const colNumFontSize = Math.max(5, inch(0.058));
+    ctx.font = `bold ${colNumFontSize}px 'Courier New', monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = spec.colNumColor;
-    const colNumTopY = snap(inch(spec.topMargin - spec.rowPitch * 0.55));
+    const colNumMidY = snap(inch(spec.topMargin + 2.5 * spec.rowPitch));
     const colNumBotY = snap(inch(spec.topMargin + 11 * spec.rowPitch + spec.rowPitch * 0.42));
     for (let c = 0; c < 80; c++) {
         const x = snap(inch(spec.leftMargin + c * spec.colPitch));
-        ctx.fillText(String(c + 1), x, colNumTopY);
+        ctx.fillText(String(c + 1), x, colNumMidY);
         ctx.fillText(String(c + 1), x, colNumBotY);
     }
 
     // Bottom branding
-    const brandBotFontSize = Math.max(5, inch(0.042));
-    ctx.font = `${brandBotFontSize}px 'Courier New', monospace`;
+    const brandBotFontSize = Math.max(6, inch(0.075));
+    ctx.font = `bold ${brandBotFontSize}px 'Courier New', monospace`;
     ctx.fillStyle = spec.brandColor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
@@ -225,19 +239,23 @@ function renderCard(canvas, card, displayWidth) {
     ctx.textAlign = 'center';
     ctx.fillText('IBM 5081', w / 2, snap(h - inch(0.02)));
 
-    // Printed characters
+    // Printed characters — different printer, bolder, sans-serif
     if (card) {
-        const printFontSize = Math.max(6, inch(0.075));
-        ctx.font = `bold ${printFontSize}px 'Courier New', monospace`;
+        const printFontSize = Math.max(6, inch(0.13));
+        ctx.font = `bold ${printFontSize}px 'Keypunch029', 'Arial Narrow', sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = spec.printColor;
+        ctx.fillStyle = 'rgba(100, 85, 65, 0.55)';
         for (let c = 0; c < card.text.length; c++) {
             const ch = card.text[c];
             if (ch && ch !== ' ') {
                 const x = snap(inch(spec.leftMargin + c * spec.colPitch));
                 const y = snap(inch(spec.printY));
-                ctx.fillText(ch.toUpperCase(), x, y);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.scale(1, 1.1);
+                ctx.fillText(ch.toUpperCase(), 0, 0);
+                ctx.restore();
             }
         }
     }
@@ -275,27 +293,29 @@ function renderCard(canvas, card, displayWidth) {
     ctx.restore();
 }
 
-// Render with same text as the reference image
-const refText = "HELLO, WORLD. THIS IS TWO-BIT HISTORY. ABCDEFGHIJKLMNOPQRSTUVWXYZ 123456 !$&#@*";
-const card = createCard(refText);
+// Load font explicitly for canvas, then render
+Promise.all([
+    new FontFace('Keypunch029', 'url(Keypunch029.otf)').load().then(f => document.fonts.add(f)),
+    new FontFace('Keypunch029', 'url(Keypunch029-Bold.otf)', { weight: 'bold' }).load().then(f => document.fonts.add(f)),
+]).catch(() => {}).then(() => {
+    const refText = "HELLO, WORLD. THIS IS TWO-BIT HISTORY. ABCDEFGHIJKLMNOPQRSTUVWXYZ 123456 !$&#@*";
+    const card = createCard(refText);
 
-// Render at 767px to match reference image width
-renderCard(document.getElementById('our-card'), card, 767);
-renderCard(document.getElementById('overlay-card'), card, 767);
+    renderCard(document.getElementById('our-card'), card, 767);
+    renderCard(document.getElementById('overlay-card'), card, 767);
 
-// Set overlay image size to match
-const refImg = document.getElementById('overlay-ref');
-refImg.style.width = '767px';
-refImg.style.height = (767 / (7.375 / 3.250)) + 'px';
-document.getElementById('overlay-wrap').style.width = '767px';
-document.getElementById('overlay-wrap').style.height = refImg.style.height;
+    const refImg = document.getElementById('overlay-ref');
+    refImg.style.width = '767px';
+    refImg.style.height = (767 / (7.375 / 3.250)) + 'px';
+    document.getElementById('overlay-wrap').style.width = '767px';
+    document.getElementById('overlay-wrap').style.height = refImg.style.height;
 
-// Blend slider
-const blend = document.getElementById('blend');
-const blendVal = document.getElementById('blend-val');
-blend.addEventListener('input', function() {
-    refImg.style.opacity = this.value / 100;
-    blendVal.textContent = this.value + '%';
+    const blend = document.getElementById('blend');
+    const blendVal = document.getElementById('blend-val');
+    blend.addEventListener('input', function() {
+        refImg.style.opacity = this.value / 100;
+        blendVal.textContent = this.value + '%';
+    });
 });
 </script>
 </body>
