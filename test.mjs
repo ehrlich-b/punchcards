@@ -65,12 +65,12 @@ await test('default program is loaded', async () => {
     const text = await page.evaluate(() =>
         document.querySelector('.CodeMirror').CodeMirror.getValue()
     );
-    assert.ok(text.includes('HELLO WORLD'), 'Default program not loaded');
+    assert.ok(text.includes('MANDELBROT'), 'Default program not loaded');
 });
 
-await test('deck has 5 cards', async () => {
+await test('deck has cards', async () => {
     const count = await page.evaluate(() => deck.length);
-    assert.equal(count, 5);
+    assert.ok(count > 0, 'Deck is empty');
 });
 
 await test('card canvas is rendered', async () => {

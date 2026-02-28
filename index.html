@@ -2083,9 +2083,10 @@ function loadState() {
             const lines = source.split('\n');
             deck = lines.map(line => createCard(line));
         } else {
-            // No saved state — load default program
+            // No saved state — load default program (Mandelbrot)
+            const defaultProg = PROGRAM_LIBRARY.find(p => p.name === 'Mandelbrot');
             suppressCursorDispose = true;
-            editor.setValue("C     HELLO WORLD\n      WRITE(6,10)\n   10 FORMAT(12HHELLO WORLD!)\n      STOP\n      END");
+            editor.setValue(defaultProg ? defaultProg.source : '');
             suppressCursorDispose = false;
         }
         suppressPunchCount = false;
