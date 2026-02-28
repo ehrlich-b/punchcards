@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Punchcards</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* --- Header --- */
+#header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    flex-shrink: 0;
+}
+
+#header h1 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0e0;
+    letter-spacing: 1px;
+}
+
+#header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: #888;
+}
+
+#card-count { color: #aaa; }
+
+/* --- Main layout --- */
+#main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+/* --- Editor panel --- */
+#editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-right: 1px solid #0f3460;
+}
+
+#editor-panel .CodeMirror {
+    flex: 1;
+    height: auto;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    background: #0a0a1a;
+    color: #e0e0e0;
+}
+
+#editor-panel .CodeMirror-gutters {
+    background: #0f0f1f;
+    border-right: 1px solid #1a1a3e;
+}
+
+#editor-panel .CodeMirror-linenumber {
+    color: #555;
+}
+
+/* Column 72 guide */
+.col72-guide {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 80, 80, 0.25);
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* --- Card panel --- */
+#card-panel {
+    width: 420px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+    overflow-y: auto;
+    background: #12122a;
+}
+
+#card-panel h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#card-canvas-wrap {
+    background: #1a1a2e;
+    border-radius: 4px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#card-canvas {
+    display: block;
+    max-width: 100%;
+    cursor: pointer;
+}
+
+#card-label {
+    font-size: 12px;
+    color: #888;
+    text-align: center;
+}
+
+/* --- Stats --- */
+#stats {
+    font-size: 12px;
+    color: #777;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 8px;
+    border-top: 1px solid #1a1a3e;
+}
+
+#stats span { display: block; }
+#stats .stat-value { color: #aaa; }
+
+/* --- Output panel --- */
+#output-panel {
+    flex-shrink: 0;
+    height: 160px;
+    border-top: 1px solid #0f3460;
+    display: flex;
+    flex-direction: column;
+}
+
+#output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 16px;
+    background: #16213e;
+    font-size: 12px;
+    color: #888;
+    flex-shrink: 0;
+}
+
+#output-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 16px;
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 13px;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(80, 200, 80, 0.03) 0px,
+        rgba(80, 200, 80, 0.03) 20px,
+        transparent 20px,
+        transparent 40px
+    );
+    color: #a0d0a0;
+    white-space: pre;
+}
+
+/* --- FORTRAN syntax colors --- */
+.cm-s-default .cm-comment { color: #6a9955; }
+.cm-s-default .cm-keyword { color: #569cd6; }
+.cm-s-default .cm-number { color: #b5cea8; }
+.cm-s-default .cm-label { color: #dcdcaa; }
+.cm-s-default .cm-string { color: #ce9178; }
+.cm-s-default .cm-variable { color: #e0e0e0; }
+.cm-s-default .cm-operator { color: #d4d4d4; }
+.cm-s-default .cm-continuation { color: #c586c0; }
+
+/* --- Card Viewer Overlay --- */
+#card-viewer {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(10, 10, 26, 0.95);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+#card-viewer.active { display: flex; }
+
+#viewer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 800px;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+}
+
+#viewer-header h2 {
+    font-size: 14px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+#viewer-close {
+    background: none;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+}
+#viewer-close:hover { border-color: #888; color: #e0e0e0; }
+
+#viewer-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 16px;
+    flex-shrink: 0;
+}
+
+.viewer-tab {
+    background: #16213e;
+    border: 1px solid #0f3460;
+    color: #888;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.viewer-tab:hover { color: #ccc; }
+.viewer-tab.active { background: #0f3460; color: #e0e0e0; }
+
+#viewer-canvas-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+#viewer-canvas {
+    display: block;
+    cursor: crosshair;
+}
+
+#viewer-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 800px;
+    margin-top: 12px;
+    flex-shrink: 0;
+}
+
+.viewer-nav-btn {
+    background: none;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 6px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+}
+.viewer-nav-btn:hover { border-color: #888; color: #e0e0e0; }
+.viewer-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+#viewer-card-label {
+    font-size: 13px;
+    color: #aaa;
+}
+
+#viewer-col-detail {
+    margin-top: 12px;
+    font-size: 13px;
+    color: #aaa;
+    min-height: 20px;
+    flex-shrink: 0;
+}
+
+/* --- Recycle Bin list --- */
+#recycle-list {
+    width: 100%;
+    max-width: 800px;
+    margin-top: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.recycle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    border-bottom: 1px solid #1a1a3e;
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+}
+.recycle-item:hover { background: #16213e; color: #ccc; }
+
+.recycle-item-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 12px;
+    font-family: 'Courier New', monospace;
+}
+
+.recycle-item-meta { color: #555; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div id="header">
+    <h1>PUNCHCARDS</h1>
+    <div id="header-right">
+        <span id="card-count">Deck: 0 cards</span>
+    </div>
+</div>
+
+<div id="main">
+    <div id="editor-panel">
+        <textarea id="editor"></textarea>
+    </div>
+    <div id="card-panel">
+        <h2>Top Card</h2>
+        <div id="card-canvas-wrap">
+            <canvas id="card-canvas"></canvas>
+        </div>
+        <div id="card-label">No cards in deck</div>
+        <div id="stats">
+            <span>Cards in deck: <span class="stat-value" id="stat-deck">0</span></span>
+            <span>Total punched: <span class="stat-value" id="stat-punched">0</span></span>
+            <span>Total disposed: <span class="stat-value" id="stat-disposed">0</span></span>
+        </div>
+    </div>
+</div>
+
+<!-- Card Viewer Overlay -->
+<div id="card-viewer">
+    <div id="viewer-header">
+        <h2 id="viewer-title">Card Viewer</h2>
+        <button id="viewer-close">ESC Close</button>
+    </div>
+    <div id="viewer-tabs">
+        <button class="viewer-tab active" data-tab="deck">Deck</button>
+        <button class="viewer-tab" data-tab="recycle">Recycle Bin <span id="recycle-count">(0)</span></button>
+    </div>
+    <div id="viewer-canvas-wrap">
+        <canvas id="viewer-canvas"></canvas>
+    </div>
+    <div id="viewer-nav">
+        <button class="viewer-nav-btn" id="viewer-prev">Prev</button>
+        <span id="viewer-card-label">Card 1 of 5</span>
+        <button class="viewer-nav-btn" id="viewer-next">Next</button>
+    </div>
+    <div id="viewer-col-detail"></div>
+    <div id="recycle-list"></div>
+</div>
+
+<div id="output-panel">
+    <div id="output-header">LINE PRINTER OUTPUT</div>
+    <div id="output-content">READY</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script>
+// ============================================================
+// Hollerith Encoding Table (IBM 029 Keypunch)
+// Each character maps to an array of row numbers that get punched.
+// Rows: 12, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
+// ============================================================
+const HOLLERITH = {
+    // Letters A-I: row 12 + digit 1-9
+    'A': [12, 1], 'B': [12, 2], 'C': [12, 3], 'D': [12, 4], 'E': [12, 5],
+    'F': [12, 6], 'G': [12, 7], 'H': [12, 8], 'I': [12, 9],
+    // Letters J-R: row 11 + digit 1-9
+    'J': [11, 1], 'K': [11, 2], 'L': [11, 3], 'M': [11, 4], 'N': [11, 5],
+    'O': [11, 6], 'P': [11, 7], 'Q': [11, 8], 'R': [11, 9],
+    // Letters S-Z: row 0 + digit 2-9
+    'S': [0, 2], 'T': [0, 3], 'U': [0, 4], 'V': [0, 5], 'W': [0, 6],
+    'X': [0, 7], 'Y': [0, 8], 'Z': [0, 9],
+    // Digits 0-9: single punch
+    '0': [0], '1': [1], '2': [2], '3': [3], '4': [4],
+    '5': [5], '6': [6], '7': [7], '8': [8], '9': [9],
+    // Special characters (IBM 029)
+    ' ': [],
+    '.': [12, 8, 3],
+    ')': [12, 8, 4],
+    '+': [12, 8, 6],
+    '$': [11, 8, 3],
+    '*': [11, 8, 4],
+    '-': [11],
+    '/': [0, 1],
+    ',': [0, 8, 3],
+    '(': [0, 8, 4],
+    '=': [8, 6],
+    "'": [8, 5],
+    '&': [12],
+    '!': [11, 8, 2],
+    ';': [11, 8, 6],
+    ':': [8, 2],
+    '#': [8, 3],
+    '@': [8, 4],
+    '%': [0, 8, 4], // same as ( on some keypunches; use 0,8,4
+    '<': [12, 8, 4], // varies by keypunch
+    '>': [0, 8, 6],
+    '?': [0, 8, 7],
+    '"': [8, 7],
+};
+
+// Row indices: maps row number to array index (0-11)
+const ROW_ORDER = [12, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const ROW_INDEX = {};
+ROW_ORDER.forEach((r, i) => ROW_INDEX[r] = i);
+
+// ============================================================
+// Card Data Model
+// ============================================================
+function createCard(text) {
+    text = (text || '').substring(0, 80);
+    const columns = new Array(80).fill(null).map(() => new Array(12).fill(false));
+    for (let c = 0; c < text.length; c++) {
+        const ch = text[c].toUpperCase();
+        const punches = HOLLERITH[ch];
+        if (punches) {
+            for (const row of punches) {
+                columns[c][ROW_INDEX[row]] = true;
+            }
+        }
+    }
+    return { text, columns };
+}
+
+// ============================================================
+// Canvas Card Renderer (per CARD.md spec)
+// ============================================================
+const CARD_SPEC = {
+    // Physical dimensions in inches
+    cardWidth: 7.375,
+    cardHeight: 3.250,
+    chamferX: 0.220,   // horizontal leg of corner cut
+    chamferY: 0.400,   // vertical leg — steeper ~62 degree angle
+    cornerRadius: 0.125,
+    // Hole dimensions
+    holeWidth: 0.055,
+    holeHeight: 0.125,
+    holeRadius: 0.005,
+    // Grid spacing
+    colPitch: 0.087,
+    rowPitch: 0.250,
+    // Margins
+    leftMargin: 0.251,
+    topMargin: 0.250,
+    // Print strip
+    printY: 0.100,
+    // Colors — pixel-sampled from reference IBM 5081 card stock
+    bodyFill: '#E6E3D7',
+    borderStroke: '#C4BEB0',
+    holeFill: '#2C2416',
+    printColor: '#7A4A2E',
+    colNumColor: '#8B5A3B',
+    rowDigitColor: '#8B5A3B',
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    brandColor: '#8B5A3B',
+    regBarColor: '#B39780',
+};
+
+function renderCard(canvas, card, displayWidth) {
+    displayWidth = displayWidth || 380;
+    const spec = CARD_SPEC;
+    const aspectRatio = spec.cardWidth / spec.cardHeight;
+    const displayHeight = displayWidth / aspectRatio;
+    const scale = displayWidth / spec.cardWidth;
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.round(displayWidth * dpr);
+    canvas.height = Math.round(displayHeight * dpr);
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    function snap(v) { return Math.round(v * dpr) / dpr; }
+    function inch(v) { return v * scale; }
+
+    // Clear
+    ctx.clearRect(0, 0, displayWidth, displayHeight);
+
+    // Card body path (chamfer upper-left, rounded other 3 corners)
+    const w = displayWidth;
+    const h = displayHeight;
+    const chamferX = inch(spec.chamferX);
+    const chamferY = inch(spec.chamferY);
+    const r = inch(spec.cornerRadius);
+
+    const cardPath = new Path2D();
+    cardPath.moveTo(snap(chamferX), 0);
+    cardPath.lineTo(snap(w - r), 0);
+    cardPath.arcTo(snap(w), 0, snap(w), snap(r), r);
+    cardPath.lineTo(snap(w), snap(h - r));
+    cardPath.arcTo(snap(w), snap(h), snap(w - r), snap(h), r);
+    cardPath.lineTo(snap(r), snap(h));
+    cardPath.arcTo(0, snap(h), 0, snap(h - r), r);
+    cardPath.lineTo(0, snap(chamferY));
+    cardPath.lineTo(snap(chamferX), 0);
+    cardPath.closePath();
+
+    // Shadow
+    ctx.save();
+    ctx.shadowColor = spec.shadowColor;
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = spec.bodyFill;
+    ctx.fill(cardPath);
+    ctx.restore();
+
+    // Card border
+    ctx.strokeStyle = spec.borderStroke;
+    ctx.lineWidth = 1;
+    ctx.stroke(cardPath);
+
+    // Clip to card shape for all interior drawing
+    ctx.save();
+    ctx.clip(cardPath);
+
+    // --- Vertical branding on left side (two separate stamps) ---
+    // rotate(-π/2) + textAlign 'left' = first char at translate Y, text extends UPWARD
+    // "EHRLICH MAINFRAME" — large, condensed
+    const brandMainFont = Math.max(7, inch(0.12));
+    ctx.save();
+    ctx.font = `bold ${brandMainFont}px 'Courier New', monospace`;
+    const mainTextWidth = ctx.measureText('EHRLICH MAINFRAME').width * 0.715;
+    ctx.fillStyle = spec.brandColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.translate(snap(inch(0.075)), snap(h * 0.722));
+    ctx.rotate(-Math.PI / 2);
+    ctx.scale(0.715, 1);
+    ctx.fillText('EHRLICH MAINFRAME', 0, 0);
+    ctx.restore();
+    // "<ehrlich.dev>" — small stamp right after MAINFRAME (continues upward)
+    ctx.save();
+    ctx.font = `bold ${Math.max(4, inch(0.11))}px 'Courier New', monospace`;
+    ctx.fillStyle = spec.brandColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.translate(snap(inch(0.075)), snap(h * 0.722 - mainTextWidth - inch(0.06)));
+    ctx.rotate(-Math.PI / 2);
+    ctx.scale(0.825, 1);
+    ctx.fillText('<ehrlich.dev>', 0, 0);
+    ctx.restore();
+
+    // --- Registration notches (ink blobs flush with each edge) ---
+    ctx.fillStyle = spec.brandColor;
+    const notchW = snap(Math.max(3, inch(0.043)));
+    const notchH = snap(h * 0.06);
+    const notchY = snap(h * 0.75);
+    ctx.fillRect(0, notchY, notchW, notchH);
+    ctx.fillRect(snap(w - notchW), notchY, notchW, notchH);
+    // Re-clip (restore dropped it)
+    ctx.save();
+    ctx.clip(cardPath);
+
+    // --- Row digit grid ---
+    // Digits must nearly touch horizontally like on real IBM 5081 stock
+    const digitFontSize = Math.max(8, inch(0.13));
+    ctx.font = `bold ${digitFontSize}px 'Courier New', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = spec.rowDigitColor;
+    for (let ri = 0; ri < 12; ri++) {
+        const rowNum = ROW_ORDER[ri];
+        if (rowNum < 0 || rowNum > 9) continue;
+        const y = snap(inch(spec.topMargin + ri * spec.rowPitch));
+        const digit = String(rowNum);
+        for (let c = 0; c < 80; c++) {
+            const x = snap(inch(spec.leftMargin + c * spec.colPitch));
+            ctx.fillText(digit, x, y);
+        }
+    }
+
+    // --- Column numbers at top and bottom ---
+    const colNumFontSize = Math.max(4, inch(0.042));
+    ctx.font = `${colNumFontSize}px 'Courier New', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = spec.colNumColor;
+    const colNumTopY = snap(inch(spec.topMargin - spec.rowPitch * 0.55));
+    const colNumBotY = snap(inch(spec.topMargin + 11 * spec.rowPitch + spec.rowPitch * 0.42));
+    for (let c = 0; c < 80; c++) {
+        const x = snap(inch(spec.leftMargin + c * spec.colPitch));
+        const label = String(c + 1);
+        ctx.fillText(label, x, colNumTopY);
+        ctx.fillText(label, x, colNumBotY);
+    }
+
+    // --- Bottom branding ---
+    const brandBotFontSize = Math.max(5, inch(0.042));
+    ctx.font = `${brandBotFontSize}px 'Courier New', monospace`;
+    ctx.fillStyle = spec.brandColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('EHR  0815', snap(inch(spec.leftMargin)), snap(h - inch(0.02)));
+    ctx.textAlign = 'center';
+    ctx.fillText('IBM 5081', w / 2, snap(h - inch(0.02)));
+
+    // --- Printed characters from keypunch (print strip at very top) ---
+    if (card) {
+        const printFontSize = Math.max(6, inch(0.075));
+        ctx.font = `bold ${printFontSize}px 'Courier New', monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = spec.printColor;
+        for (let c = 0; c < card.text.length; c++) {
+            const ch = card.text[c];
+            if (ch && ch !== ' ') {
+                const x = snap(inch(spec.leftMargin + c * spec.colPitch));
+                const y = snap(inch(spec.printY));
+                ctx.fillText(ch.toUpperCase(), x, y);
+            }
+        }
+    }
+
+    // --- Holes ---
+    if (card) {
+        const hw = inch(spec.holeWidth);
+        const hh = inch(spec.holeHeight);
+        const hr = inch(spec.holeRadius);
+        ctx.fillStyle = spec.holeFill;
+        for (let c = 0; c < 80; c++) {
+            for (let ri = 0; ri < 12; ri++) {
+                if (card.columns[c][ri]) {
+                    const cx = inch(spec.leftMargin + c * spec.colPitch);
+                    const cy = inch(spec.topMargin + ri * spec.rowPitch);
+                    const hx = snap(cx - hw / 2);
+                    const hy = snap(cy - hh / 2);
+                    ctx.beginPath();
+                    ctx.moveTo(hx + hr, hy);
+                    ctx.lineTo(hx + hw - hr, hy);
+                    ctx.arcTo(hx + hw, hy, hx + hw, hy + hr, hr);
+                    ctx.lineTo(hx + hw, hy + hh - hr);
+                    ctx.arcTo(hx + hw, hy + hh, hx + hw - hr, hy + hh, hr);
+                    ctx.lineTo(hx + hr, hy + hh);
+                    ctx.arcTo(hx, hy + hh, hx, hy + hh - hr, hr);
+                    ctx.lineTo(hx, hy + hr);
+                    ctx.arcTo(hx, hy, hx + hr, hy, hr);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+        }
+    }
+
+    ctx.restore(); // un-clip
+}
+
+// ============================================================
+// FORTRAN Syntax Highlighting Mode for CodeMirror
+// ============================================================
+CodeMirror.defineMode('fortran', function() {
+    const keywords = new Set([
+        'PROGRAM', 'SUBROUTINE', 'FUNCTION', 'CALL', 'RETURN',
+        'INTEGER', 'REAL', 'DOUBLE', 'PRECISION', 'COMPLEX', 'LOGICAL', 'CHARACTER',
+        'DIMENSION', 'COMMON', 'DATA', 'EQUIVALENCE', 'IMPLICIT',
+        'IF', 'THEN', 'ELSE', 'ENDIF', 'DO', 'CONTINUE', 'GOTO', 'GO',
+        'WRITE', 'READ', 'FORMAT', 'PRINT',
+        'STOP', 'END', 'PAUSE',
+    ]);
+
+    return {
+        startState: function() {
+            return { inStatement: false, col: 0 };
+        },
+        token: function(stream, state) {
+            // Track column position
+            const col = stream.column();
+
+            // Beginning of line
+            if (col === 0) {
+                state.inStatement = false;
+                // Comment: C or * in column 1
+                if (stream.match(/^[Cc*]/)) {
+                    stream.skipToEnd();
+                    return 'comment';
+                }
+                // Statement label (cols 1-5)
+                if (stream.match(/^\d{1,5}/)) {
+                    return 'label';
+                }
+                // Skip to col 6
+                if (stream.match(/^ {1,5}/)) {
+                    return null;
+                }
+            }
+
+            // Column 6: continuation character
+            if (col === 5) {
+                const ch = stream.next();
+                if (ch && ch !== ' ' && ch !== '0') {
+                    return 'continuation';
+                }
+                return null;
+            }
+
+            // Skip whitespace
+            if (stream.eatSpace()) return null;
+
+            // Beyond column 72 = sequence number area
+            if (col >= 72) {
+                stream.skipToEnd();
+                return 'comment';
+            }
+
+            // String literals (single-quoted)
+            if (stream.match(/^'[^']*'/)) {
+                return 'string';
+            }
+
+            // Hollerith constants: nH followed by n characters
+            if (stream.match(/^\d+H/i)) {
+                const count = parseInt(stream.current());
+                for (let i = 0; i < count && !stream.eol(); i++) {
+                    stream.next();
+                }
+                return 'string';
+            }
+
+            // Numbers
+            if (stream.match(/^\d+\.?\d*([EeDd][+-]?\d+)?/) || stream.match(/^\.\d+([EeDd][+-]?\d+)?/)) {
+                return 'number';
+            }
+
+            // Dot operators (.GT., .LT., etc.)
+            if (stream.match(/^\.\w+\./)) {
+                return 'operator';
+            }
+
+            // Identifiers / keywords
+            if (stream.match(/^[A-Za-z]\w*/)) {
+                const word = stream.current().toUpperCase();
+                if (keywords.has(word)) return 'keyword';
+                return 'variable';
+            }
+
+            // Operators
+            if (stream.match(/^[+\-*/=(),]/)) {
+                return 'operator';
+            }
+
+            // Anything else
+            stream.next();
+            return null;
+        }
+    };
+});
+
+// ============================================================
+// Punch Animation
+// ============================================================
+const punchFlashes = []; // {col, row, startTime}
+const PUNCH_FLASH_DURATION = 200; // ms
+
+function addPunchFlash(col, rowIndex) {
+    punchFlashes.push({ col, row: rowIndex, startTime: performance.now() });
+    requestAnimationFrame(animatePunchFlashes);
+}
+
+let animating = false;
+function animatePunchFlashes() {
+    if (animating) return;
+    animating = true;
+    function frame() {
+        const now = performance.now();
+        // Remove expired
+        while (punchFlashes.length > 0 && now - punchFlashes[0].startTime > PUNCH_FLASH_DURATION) {
+            punchFlashes.shift();
+        }
+        renderCurrentCard();
+        if (punchFlashes.length > 0) {
+            requestAnimationFrame(frame);
+        } else {
+            animating = false;
+        }
+    }
+    frame();
+}
+
+// ============================================================
+// Extended Card Renderer with punch flash overlay
+// ============================================================
+function renderCardWithFlash(canvas, card, displayWidth, flashes) {
+    renderCard(canvas, card, displayWidth);
+    if (!flashes || flashes.length === 0 || !card) return;
+
+    const spec = CARD_SPEC;
+    const scale = displayWidth / spec.cardWidth;
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = canvas.getContext('2d');
+
+    function snap(v) { return Math.round(v * dpr) / dpr; }
+    function inch(v) { return v * scale; }
+
+    const now = performance.now();
+    const hw = inch(spec.holeWidth);
+    const hh = inch(spec.holeHeight);
+
+    ctx.save();
+    for (const flash of flashes) {
+        const elapsed = now - flash.startTime;
+        const progress = elapsed / PUNCH_FLASH_DURATION;
+        if (progress >= 1) continue;
+
+        // Bright flash that fades out, expanding slightly
+        const alpha = 1 - progress;
+        const expand = progress * inch(0.02);
+        const cx = inch(spec.leftMargin + flash.col * spec.colPitch);
+        const cy = inch(spec.topMargin + flash.row * spec.rowPitch);
+        const fx = snap(cx - hw / 2 - expand);
+        const fy = snap(cy - hh / 2 - expand);
+        const fw = hw + expand * 2;
+        const fh = hh + expand * 2;
+
+        ctx.fillStyle = `rgba(255, 240, 200, ${alpha * 0.8})`;
+        ctx.fillRect(fx, fy, fw, fh);
+    }
+    ctx.restore();
+}
+
+// ============================================================
+// App Init
+// ============================================================
+const editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+    mode: 'fortran',
+    lineNumbers: true,
+    tabSize: 6,
+    indentUnit: 6,
+    electricChars: false,
+    lineWrapping: false,
+});
+
+// Column 72 guide line
+function addCol72Guide() {
+    const charWidth = editor.defaultCharWidth();
+    const gutterWidth = editor.getGutterElement().offsetWidth;
+    const left = gutterWidth + charWidth * 72;
+
+    const old = editor.getWrapperElement().querySelector('.col72-guide');
+    if (old) old.remove();
+
+    const guide = document.createElement('div');
+    guide.className = 'col72-guide';
+    guide.style.left = left + 'px';
+    editor.getWrapperElement().appendChild(guide);
+}
+
+setTimeout(addCol72Guide, 100);
+editor.on('refresh', addCol72Guide);
+
+// ============================================================
+// Card Stack Model
+// ============================================================
+let deck = [];          // array of card objects, one per editor line
+let recycleBin = [];    // disposed cards: {card, lineNumber, disposedAt}
+let totalPunched = 0;
+let totalDisposed = 0;
+let dirtyLines = {};    // line number -> true if card is dirty (backspace happened)
+let lastLineCount = 0;
+let lastCursorLine = 0;
+let suppressCursorDispose = false;
+
+function disposeCard(lineNum, card) {
+    if (!card) return;
+    recycleBin.push({
+        card: card,
+        lineNumber: lineNum + 1,
+        disposedAt: Date.now(),
+    });
+    // Cap at 500
+    if (recycleBin.length > 500) {
+        recycleBin = recycleBin.slice(recycleBin.length - 500);
+    }
+    totalDisposed++;
+}
+
+function punchNewCard(lineNum, text) {
+    const card = createCard(text);
+    totalPunched++;
+    return card;
+}
+
+// Detect which holes are new between old and new card
+function diffHoles(oldCard, newCard) {
+    const newHoles = [];
+    for (let c = 0; c < 80; c++) {
+        for (let ri = 0; ri < 12; ri++) {
+            if (newCard.columns[c][ri] && (!oldCard || !oldCard.columns[c][ri])) {
+                newHoles.push({ col: c, row: ri });
+            }
+        }
+    }
+    return newHoles;
+}
+
+// Full sync of editor text to deck
+function syncDeck(changeObj) {
+    const lines = editor.getValue().split('\n');
+    const cursorLine = editor.getCursor().line;
+
+    // Determine if this change is a deletion (backspace/delete)
+    const isDelete = changeObj && changeObj.origin === '+delete';
+    const isInput = changeObj && (changeObj.origin === '+input' || changeObj.origin === 'paste');
+    const changedLine = changeObj ? changeObj.from.line : -1;
+
+    // Handle line count changes (add/remove cards)
+    if (lines.length !== deck.length) {
+        // Lines were added or removed — rebuild affected portion
+        const newDeck = [];
+        for (let i = 0; i < lines.length; i++) {
+            if (i < deck.length && deck[i] && deck[i].text === lines[i]) {
+                // Unchanged card
+                newDeck.push(deck[i]);
+            } else if (i < deck.length && deck[i]) {
+                // Line content changed
+                if (dirtyLines[i] && isInput && changedLine === i) {
+                    // Dirty card being re-typed: dispose old, punch new
+                    disposeCard(i, deck[i]);
+                    delete dirtyLines[i];
+                }
+                const oldCard = deck[i];
+                const card = punchNewCard(i, lines[i]);
+                newDeck.push(card);
+                // Flash new holes
+                const newHoles = diffHoles(oldCard, card);
+                for (const h of newHoles) addPunchFlash(h.col, h.row);
+            } else {
+                // Brand new line
+                const card = punchNewCard(i, lines[i]);
+                newDeck.push(card);
+                // Flash all holes on new card
+                const newHoles = diffHoles(null, card);
+                for (const h of newHoles) addPunchFlash(h.col, h.row);
+            }
+        }
+        // Dispose cards for removed lines
+        for (let i = lines.length; i < deck.length; i++) {
+            if (deck[i]) {
+                disposeCard(i, deck[i]);
+                delete dirtyLines[i];
+            }
+        }
+        deck = newDeck;
+    } else {
+        // Same number of lines — find changed lines
+        for (let i = 0; i < lines.length; i++) {
+            if (deck[i] && deck[i].text === lines[i]) continue;
+
+            if (isDelete && changedLine === i) {
+                // Backspace/delete: mark dirty, re-punch card in place (no dispose)
+                dirtyLines[i] = true;
+                const oldCard = deck[i];
+                deck[i] = createCard(lines[i]);
+                // No totalPunched increment — same physical card, just damaged
+            } else if (isInput && changedLine === i) {
+                if (dirtyLines[i]) {
+                    // Typing on a dirty card: dispose old, punch fresh
+                    disposeCard(i, deck[i]);
+                    delete dirtyLines[i];
+                }
+                const oldCard = deck[i];
+                const card = punchNewCard(i, lines[i]);
+                deck[i] = card;
+                // Flash new holes
+                const newHoles = diffHoles(oldCard, card);
+                for (const h of newHoles) addPunchFlash(h.col, h.row);
+            } else {
+                // Other change (undo, redo, etc.)
+                const oldCard = deck[i];
+                const card = punchNewCard(i, lines[i]);
+                deck[i] = card;
+                const newHoles = diffHoles(oldCard, card);
+                for (const h of newHoles) addPunchFlash(h.col, h.row);
+            }
+        }
+    }
+
+    lastLineCount = lines.length;
+    updateUI();
+}
+
+// Handle cursor movement: dispose dirty card when navigating away
+function handleCursorMove() {
+    if (suppressCursorDispose) return;
+    const cursorLine = editor.getCursor().line;
+    if (cursorLine !== lastCursorLine) {
+        // Navigated away from a line — if it was dirty, dispose and re-punch
+        if (dirtyLines[lastCursorLine] && deck[lastCursorLine]) {
+            const line = editor.getLine(lastCursorLine);
+            disposeCard(lastCursorLine, deck[lastCursorLine]);
+            deck[lastCursorLine] = punchNewCard(lastCursorLine, line || '');
+            delete dirtyLines[lastCursorLine];
+            updateUI();
+        }
+        lastCursorLine = cursorLine;
+    }
+}
+
+function renderCurrentCard() {
+    const canvas = document.getElementById('card-canvas');
+    const label = document.getElementById('card-label');
+    if (deck.length > 0) {
+        let lineNum = editor.getCursor().line;
+        if (lineNum >= deck.length) lineNum = deck.length - 1;
+        renderCardWithFlash(canvas, deck[lineNum], 380, punchFlashes);
+        label.textContent = 'Card ' + (lineNum + 1) + ' of ' + deck.length;
+    } else {
+        renderCard(canvas, null, 380);
+        label.textContent = 'No cards in deck';
+    }
+}
+
+function updateUI() {
+    document.getElementById('card-count').textContent = 'Deck: ' + deck.length + ' card' + (deck.length !== 1 ? 's' : '');
+    document.getElementById('stat-deck').textContent = deck.length;
+    document.getElementById('stat-punched').textContent = totalPunched;
+    document.getElementById('stat-disposed').textContent = totalDisposed;
+    renderCurrentCard();
+}
+
+// Wire editor to card punching
+editor.on('change', function(cm, changeObj) {
+    syncDeck(changeObj);
+    scheduleSave();
+});
+
+editor.on('cursorActivity', function() {
+    handleCursorMove();
+    renderCurrentCard();
+});
+
+// Handle window resize
+window.addEventListener('resize', function() {
+    updateUI();
+    addCol72Guide();
+});
+
+// ============================================================
+// Card Viewer
+// ============================================================
+let viewerMode = 'deck';  // 'deck' or 'recycle'
+let viewerIndex = 0;
+let viewerRecycleIndex = 0;
+
+function getViewerCard() {
+    if (viewerMode === 'deck') {
+        if (deck.length === 0) return null;
+        viewerIndex = Math.max(0, Math.min(viewerIndex, deck.length - 1));
+        return deck[viewerIndex];
+    } else {
+        if (recycleBin.length === 0) return null;
+        viewerRecycleIndex = Math.max(0, Math.min(viewerRecycleIndex, recycleBin.length - 1));
+        return recycleBin[viewerRecycleIndex].card;
+    }
+}
+
+function getViewerLabel() {
+    if (viewerMode === 'deck') {
+        if (deck.length === 0) return 'No cards in deck';
+        return 'Card ' + (viewerIndex + 1) + ' of ' + deck.length;
+    } else {
+        if (recycleBin.length === 0) return 'Recycle bin is empty';
+        const item = recycleBin[viewerRecycleIndex];
+        return 'Disposed card ' + (viewerRecycleIndex + 1) + ' of ' + recycleBin.length +
+               ' (was line ' + item.lineNumber + ')';
+    }
+}
+
+function getViewerCount() {
+    return viewerMode === 'deck' ? deck.length : recycleBin.length;
+}
+
+function getViewerIdx() {
+    return viewerMode === 'deck' ? viewerIndex : viewerRecycleIndex;
+}
+
+function setViewerIdx(i) {
+    if (viewerMode === 'deck') viewerIndex = i;
+    else viewerRecycleIndex = i;
+}
+
+const VIEWER_WIDTH = 740;
+
+function renderViewer() {
+    const card = getViewerCard();
+    const canvas = document.getElementById('viewer-canvas');
+    renderCard(canvas, card, VIEWER_WIDTH);
+    document.getElementById('viewer-card-label').textContent = getViewerLabel();
+    document.getElementById('viewer-prev').disabled = getViewerIdx() <= 0;
+    document.getElementById('viewer-next').disabled = getViewerIdx() >= getViewerCount() - 1;
+    document.getElementById('viewer-col-detail').textContent = '';
+    document.getElementById('recycle-count').textContent = '(' + recycleBin.length + ')';
+
+    // Show/hide recycle list vs canvas
+    const recycleList = document.getElementById('recycle-list');
+    const canvasWrap = document.getElementById('viewer-canvas-wrap');
+    const nav = document.getElementById('viewer-nav');
+    const colDetail = document.getElementById('viewer-col-detail');
+
+    if (viewerMode === 'recycle' && recycleBin.length === 0) {
+        canvasWrap.style.display = 'none';
+        nav.style.display = 'none';
+        colDetail.style.display = 'none';
+        recycleList.style.display = 'block';
+        recycleList.innerHTML = '<div style="color:#555;padding:16px;text-align:center">No disposed cards yet</div>';
+    } else {
+        canvasWrap.style.display = 'block';
+        nav.style.display = 'flex';
+        colDetail.style.display = 'block';
+        if (viewerMode === 'recycle') {
+            recycleList.style.display = 'block';
+            renderRecycleList();
+        } else {
+            recycleList.style.display = 'none';
+        }
+    }
+}
+
+function renderRecycleList() {
+    const list = document.getElementById('recycle-list');
+    list.innerHTML = '';
+    // Show most recent first
+    for (let i = recycleBin.length - 1; i >= 0; i--) {
+        const item = recycleBin[i];
+        const el = document.createElement('div');
+        el.className = 'recycle-item';
+        if (i === viewerRecycleIndex) el.style.background = '#1a1a3e';
+        const textContent = item.card.text || '(blank)';
+        el.innerHTML =
+            '<span class="recycle-item-text">' + escapeHtml(textContent) + '</span>' +
+            '<span class="recycle-item-meta">Line ' + item.lineNumber + '</span>';
+        el.addEventListener('click', () => {
+            viewerRecycleIndex = i;
+            renderViewer();
+        });
+        list.appendChild(el);
+    }
+}
+
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function openViewer(mode, index) {
+    viewerMode = mode || 'deck';
+    if (typeof index === 'number') {
+        if (viewerMode === 'deck') viewerIndex = index;
+        else viewerRecycleIndex = index;
+    }
+    document.getElementById('card-viewer').classList.add('active');
+    updateViewerTabs();
+    renderViewer();
+}
+
+function closeViewer() {
+    document.getElementById('card-viewer').classList.remove('active');
+}
+
+function updateViewerTabs() {
+    document.querySelectorAll('.viewer-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === viewerMode);
+    });
+}
+
+// Click card in side panel to open viewer
+document.getElementById('card-canvas').addEventListener('click', function() {
+    const lineNum = editor.getCursor().line;
+    openViewer('deck', lineNum);
+});
+
+// Viewer controls
+document.getElementById('viewer-close').addEventListener('click', closeViewer);
+document.getElementById('viewer-prev').addEventListener('click', function() {
+    setViewerIdx(Math.max(0, getViewerIdx() - 1));
+    renderViewer();
+});
+document.getElementById('viewer-next').addEventListener('click', function() {
+    setViewerIdx(Math.min(getViewerCount() - 1, getViewerIdx() + 1));
+    renderViewer();
+});
+
+// Tab switching
+document.querySelectorAll('.viewer-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        viewerMode = this.dataset.tab;
+        updateViewerTabs();
+        renderViewer();
+    });
+});
+
+// Keyboard nav in viewer
+document.addEventListener('keydown', function(e) {
+    if (!document.getElementById('card-viewer').classList.contains('active')) return;
+    if (e.key === 'Escape') { closeViewer(); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        setViewerIdx(Math.max(0, getViewerIdx() - 1));
+        renderViewer();
+        e.preventDefault();
+    }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        setViewerIdx(Math.min(getViewerCount() - 1, getViewerIdx() + 1));
+        renderViewer();
+        e.preventDefault();
+    }
+});
+
+// Column hover/click detail
+document.getElementById('viewer-canvas').addEventListener('mousemove', function(e) {
+    showColumnDetail(e);
+});
+document.getElementById('viewer-canvas').addEventListener('click', function(e) {
+    showColumnDetail(e);
+});
+
+function showColumnDetail(e) {
+    const canvas = document.getElementById('viewer-canvas');
+    const rect = canvas.getBoundingClientRect();
+    const cssX = e.clientX - rect.left;
+    const scale = VIEWER_WIDTH / CARD_SPEC.cardWidth;
+
+    // Find closest column
+    const inchX = cssX / scale;
+    const colFloat = (inchX - CARD_SPEC.leftMargin) / CARD_SPEC.colPitch;
+    const col = Math.round(colFloat);
+    if (col < 0 || col >= 80) {
+        document.getElementById('viewer-col-detail').textContent = '';
+        return;
+    }
+
+    const card = getViewerCard();
+    if (!card) return;
+
+    const ch = col < card.text.length ? card.text[col].toUpperCase() : ' ';
+    const punchedRows = [];
+    for (let ri = 0; ri < 12; ri++) {
+        if (card.columns[col][ri]) punchedRows.push(ROW_ORDER[ri]);
+    }
+
+    let detail = 'Col ' + (col + 1) + ': ';
+    if (ch === ' ' && punchedRows.length === 0) {
+        detail += '(blank)';
+    } else {
+        detail += "'" + ch + "'";
+        if (punchedRows.length > 0) {
+            detail += '  ->  rows ' + punchedRows.join(', ');
+        }
+    }
+    document.getElementById('viewer-col-detail').textContent = detail;
+}
+
+// ============================================================
+// localStorage Persistence
+// ============================================================
+const STORAGE_PREFIX = 'punchcards:';
+let saveTimeout = null;
+
+function scheduleSave() {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(saveState, 500);
+}
+
+function saveState() {
+    try {
+        localStorage.setItem(STORAGE_PREFIX + 'source', editor.getValue());
+        localStorage.setItem(STORAGE_PREFIX + 'stats', JSON.stringify({
+            totalPunched,
+            totalDisposed,
+        }));
+        localStorage.setItem(STORAGE_PREFIX + 'recyclebin', JSON.stringify(
+            recycleBin.map(item => ({
+                text: item.card.text,
+                lineNumber: item.lineNumber,
+                disposedAt: item.disposedAt,
+            }))
+        ));
+    } catch (e) {
+        // localStorage full or unavailable — silently ignore
+    }
+}
+
+function loadState() {
+    try {
+        const source = localStorage.getItem(STORAGE_PREFIX + 'source');
+        const stats = localStorage.getItem(STORAGE_PREFIX + 'stats');
+        const recycled = localStorage.getItem(STORAGE_PREFIX + 'recyclebin');
+
+        if (source !== null) {
+            suppressCursorDispose = true;
+            editor.setValue(source);
+            suppressCursorDispose = false;
+
+            // Rebuild deck without counting as "punched" (restoring, not punching)
+            const lines = source.split('\n');
+            deck = lines.map(line => createCard(line));
+        } else {
+            // No saved state — load default program
+            suppressCursorDispose = true;
+            editor.setValue("C     HELLO WORLD\n      WRITE(6,10)\n   10 FORMAT(12HHELLO WORLD!)\n      STOP\n      END");
+            suppressCursorDispose = false;
+        }
+
+        if (stats) {
+            const parsed = JSON.parse(stats);
+            totalPunched = parsed.totalPunched || 0;
+            totalDisposed = parsed.totalDisposed || 0;
+        }
+
+        if (recycled) {
+            const parsed = JSON.parse(recycled);
+            recycleBin = parsed.map(item => ({
+                card: createCard(item.text),
+                lineNumber: item.lineNumber,
+                disposedAt: item.disposedAt,
+            }));
+        }
+    } catch (e) {
+        // Corrupted state — start fresh
+        suppressCursorDispose = true;
+        editor.setValue("C     HELLO WORLD\n      WRITE(6,10)\n   10 FORMAT(12HHELLO WORLD!)\n      STOP\n      END");
+        suppressCursorDispose = false;
+    }
+
+    lastCursorLine = editor.getCursor().line;
+    updateUI();
+}
+
+// Also save immediately on dispose events (already called from disposeCard via syncDeck -> scheduleSave)
+// Save on beforeunload as a safety net
+window.addEventListener('beforeunload', function() {
+    if (saveTimeout) { clearTimeout(saveTimeout); saveState(); }
+});
+
+// ============================================================
+// Boot
+// ============================================================
+loadState();
+
+</script>
+</body>
+</html>

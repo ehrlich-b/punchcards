@@ -1,27 +1,41 @@
 # Punchcards — TODO
 
-## Milestone 1: The Keypunch (fun first)
+## Milestone 1a: A Card on Screen
 
 - [ ] Project skeleton: index.html, basic layout, CodeMirror 5 from CDN
 - [ ] Hollerith encoding table (JS object mapping chars to 12-bit hole patterns)
 - [ ] Card data model: 80 cols x 12 rows, text content, encode/decode
-- [ ] Canvas card renderer: draw a single card with holes punched
+- [ ] Canvas card renderer (see CARD.md for full spec):
+  - [ ] DPR-aware canvas setup (devicePixelRatio scaling, sub-pixel snapping)
+  - [ ] Card body: Path2D with upper-left diagonal chamfer + 3 rounded corners
+  - [ ] Hole grid: rectangular holes (0.055" x 0.125") at correct positions
+  - [ ] Print strip: character text along top edge, one per column
+  - [ ] Color palette: cream body, dark brown holes, subtle border/shadow
+- [ ] IDE view layout: editor left, card stack right, stats below
+- [ ] Column 72 guide line in editor
+- [ ] FORTRAN syntax highlighting mode for CodeMirror (comments, labels, keywords)
+
+## Milestone 1b: The Keypunch Lives
+
 - [ ] Card stack model: array of cards, add/remove/dispose tracking
 - [ ] Wire editor to card punching: each line = one card, typing punches holes
 - [ ] Dirty card tracking: backspace marks card dirty, no dispose yet
 - [ ] Dispose on re-type or navigate away: dirty card goes to recycle bin, fresh card punched
-- [ ] Disposed pile: stores old cards with content-at-disposal and original line number
-- [ ] Disposed pile viewer: browse disposed cards, inspect any in card viewer
 - [ ] Card stats display: cards in deck, total punched, total disposed
-- [ ] IDE view layout: editor left, card stack right, stats below
+- [ ] Punch animation (brief visual pop when hole appears)
+
+## Milestone 1c: Card Viewer + Recycle Bin
+
 - [ ] Card viewer: full-size single card, prev/next navigation
 - [ ] Column hover/click detail in card viewer (show encoding)
-- [ ] FORTRAN syntax highlighting mode for CodeMirror (comments, labels, keywords)
-- [ ] Column 72 guide line in editor
-- [ ] Punch animation (brief visual pop when hole appears)
-- [ ] localStorage persistence: auto-save source, deck, recycle bin, stats on change
+- [ ] Recycle bin: stores old cards with content-at-disposal and original line number
+- [ ] Recycle bin viewer: browse disposed cards, inspect any in card viewer
+- [ ] Recycle bin cap at 500 cards (drop oldest)
+
+## Milestone 1d: Persistence
+
+- [ ] localStorage auto-save: source, deck, recycle bin, stats (debounced on change)
 - [ ] localStorage restore: rebuild full state on page load
-- [ ] Disposed pile cap at 500 cards (drop oldest)
 
 ## Milestone 2: Hello World (FORTRAN runs)
 

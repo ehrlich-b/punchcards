@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Card Comparison</title>
+<style>
+body {
+    background: #222;
+    color: #ccc;
+    font-family: monospace;
+    padding: 20px;
+}
+h2 { margin: 16px 0 8px; font-size: 14px; color: #aaa; }
+.row { display: flex; gap: 20px; align-items: flex-start; margin-bottom: 20px; }
+.card-wrap { position: relative; }
+.card-wrap canvas { display: block; }
+img { display: block; }
+#overlay-wrap {
+    position: relative;
+    display: inline-block;
+}
+#overlay-wrap img, #overlay-wrap canvas {
+    position: absolute;
+    top: 0; left: 0;
+}
+#overlay-wrap img { opacity: 0.5; }
+input[type=range] { width: 300px; }
+label { display: block; margin: 8px 0; }
+</style>
+</head>
+<body>
+<h1>Card Rendering Comparison</h1>
+
+<h2>Reference (twobithistory.org)</h2>
+<img id="ref" src="https://twobithistory.org/images/card.png" style="width:767px;height:345px;">
+
+<h2>Our Rendering (same-ish text)</h2>
+<div class="card-wrap">
+    <canvas id="our-card"></canvas>
+</div>
+
+<h2>Overlay (drag slider to blend)</h2>
+<label>Reference opacity: <input type="range" id="blend" min="0" max="100" value="50"> <span id="blend-val">50%</span></label>
+<div id="overlay-wrap">
+    <canvas id="overlay-card"></canvas>
+    <img id="overlay-ref" src="https://twobithistory.org/images/card.png">
+</div>
+
+<!-- Pull in the renderer from index.html -->
+<script>
+// Inline the needed code from index.html
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script>
+// We need to extract just the rendering code. Easiest: load index.html in an iframe and grab globals.
+// But cleaner: just duplicate the essential bits.
+
+const HOLLERITH = {
+    'A': [12, 1], 'B': [12, 2], 'C': [12, 3], 'D': [12, 4], 'E': [12, 5],
+    'F': [12, 6], 'G': [12, 7], 'H': [12, 8], 'I': [12, 9],
+    'J': [11, 1], 'K': [11, 2], 'L': [11, 3], 'M': [11, 4], 'N': [11, 5],
+    'O': [11, 6], 'P': [11, 7], 'Q': [11, 8], 'R': [11, 9],
+    'S': [0, 2], 'T': [0, 3], 'U': [0, 4], 'V': [0, 5], 'W': [0, 6],
+    'X': [0, 7], 'Y': [0, 8], 'Z': [0, 9],
+    '0': [0], '1': [1], '2': [2], '3': [3], '4': [4],
+    '5': [5], '6': [6], '7': [7], '8': [8], '9': [9],
+    ' ': [],
+    '.': [12, 8, 3], ')': [12, 8, 4], '+': [12, 8, 6],
+    '$': [11, 8, 3], '*': [11, 8, 4], '-': [11], '/': [0, 1],
+    ',': [0, 8, 3], '(': [0, 8, 4], '=': [8, 6], "'": [8, 5],
+    '&': [12], '!': [11, 8, 2], ';': [11, 8, 6], ':': [8, 2],
+    '#': [8, 3], '@': [8, 4], '%': [0, 8, 4], '<': [12, 8, 4],
+    '>': [0, 8, 6], '?': [0, 8, 7], '"': [8, 7],
+};
+const ROW_ORDER = [12, 11, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+const ROW_INDEX = {};
+ROW_ORDER.forEach((r, i) => ROW_INDEX[r] = i);
+
+function createCard(text) {
+    text = (text || '').substring(0, 80);
+    const columns = new Array(80).fill(null).map(() => new Array(12).fill(false));
+    for (let c = 0; c < text.length; c++) {
+        const ch = text[c].toUpperCase();
+        const punches = HOLLERITH[ch];
+        if (punches) {
+            for (const row of punches) {
+                columns[c][ROW_INDEX[row]] = true;
+            }
+        }
+    }
+    return { text, columns };
+}
+
+const CARD_SPEC = {
+    cardWidth: 7.375, cardHeight: 3.250,
+    chamferX: 0.220, chamferY: 0.400, cornerRadius: 0.125,
+    holeWidth: 0.055, holeHeight: 0.125, holeRadius: 0.005,
+    colPitch: 0.087, rowPitch: 0.250,
+    leftMargin: 0.251, topMargin: 0.250,
+    printY: 0.100,
+    bodyFill: '#E6E3D7', borderStroke: '#C4BEB0',
+    holeFill: '#2C2416', printColor: '#7A4A2E',
+    colNumColor: '#8B5A3B', rowDigitColor: '#8B5A3B',
+    shadowColor: 'rgba(0, 0, 0, 0.2)', brandColor: '#8B5A3B',
+    regBarColor: '#B39780',
+};
+
+function renderCard(canvas, card, displayWidth) {
+    displayWidth = displayWidth || 767;
+    const spec = CARD_SPEC;
+    const aspectRatio = spec.cardWidth / spec.cardHeight;
+    const displayHeight = displayWidth / aspectRatio;
+    const scale = displayWidth / spec.cardWidth;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(displayWidth * dpr);
+    canvas.height = Math.round(displayHeight * dpr);
+    canvas.style.width = displayWidth + 'px';
+    canvas.style.height = displayHeight + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    function snap(v) { return Math.round(v * dpr) / dpr; }
+    function inch(v) { return v * scale; }
+    ctx.clearRect(0, 0, displayWidth, displayHeight);
+    const w = displayWidth, h = displayHeight;
+    const chamferX = inch(spec.chamferX), chamferY = inch(spec.chamferY), r = inch(spec.cornerRadius);
+    const cardPath = new Path2D();
+    cardPath.moveTo(snap(chamferX), 0);
+    cardPath.lineTo(snap(w - r), 0);
+    cardPath.arcTo(snap(w), 0, snap(w), snap(r), r);
+    cardPath.lineTo(snap(w), snap(h - r));
+    cardPath.arcTo(snap(w), snap(h), snap(w - r), snap(h), r);
+    cardPath.lineTo(snap(r), snap(h));
+    cardPath.arcTo(0, snap(h), 0, snap(h - r), r);
+    cardPath.lineTo(0, snap(chamferY));
+    cardPath.lineTo(snap(chamferX), 0);
+    cardPath.closePath();
+    ctx.save();
+    ctx.shadowColor = spec.shadowColor;
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = spec.bodyFill;
+    ctx.fill(cardPath);
+    ctx.restore();
+    ctx.strokeStyle = spec.borderStroke;
+    ctx.lineWidth = 1;
+    ctx.stroke(cardPath);
+
+    ctx.save();
+    ctx.clip(cardPath);
+
+    // "EHRLICH MAINFRAME" — large, condensed
+    const brandMainFont = Math.max(7, inch(0.12));
+    ctx.save();
+    ctx.font = `bold ${brandMainFont}px 'Courier New', monospace`;
+    const mainTextWidth = ctx.measureText('EHRLICH MAINFRAME').width * 0.715;
+    ctx.fillStyle = spec.brandColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.translate(snap(inch(0.075)), snap(h * 0.722));
+    ctx.rotate(-Math.PI / 2);
+    ctx.scale(0.715, 1);
+    ctx.fillText('EHRLICH MAINFRAME', 0, 0);
+    ctx.restore();
+    // "<ehrlich.dev>" — small stamp right after MAINFRAME (continues upward)
+    ctx.save();
+    ctx.font = `bold ${Math.max(4, inch(0.11))}px 'Courier New', monospace`;
+    ctx.fillStyle = spec.brandColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.translate(snap(inch(0.075)), snap(h * 0.722 - mainTextWidth - inch(0.06)));
+    ctx.rotate(-Math.PI / 2);
+    ctx.scale(0.825, 1);
+    ctx.fillText('<ehrlich.dev>', 0, 0);
+    ctx.restore();
+
+    // Registration notches (ink blobs flush with each edge)
+    ctx.fillStyle = spec.brandColor;
+    const notchW = snap(Math.max(3, inch(0.043)));
+    const notchH = snap(h * 0.06);
+    const notchY = snap(h * 0.75);
+    ctx.fillRect(0, notchY, notchW, notchH);
+    ctx.fillRect(snap(w - notchW), notchY, notchW, notchH);
+    ctx.save();
+    ctx.clip(cardPath);
+
+    // Row digits
+    const digitFontSize = Math.max(8, inch(0.13));
+    ctx.font = `bold ${digitFontSize}px 'Courier New', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = spec.rowDigitColor;
+    for (let ri = 0; ri < 12; ri++) {
+        const rowNum = ROW_ORDER[ri];
+        if (rowNum < 0 || rowNum > 9) continue;
+        const y = snap(inch(spec.topMargin + ri * spec.rowPitch));
+        const digit = String(rowNum);
+        for (let c = 0; c < 80; c++) {
+            const x = snap(inch(spec.leftMargin + c * spec.colPitch));
+            ctx.fillText(digit, x, y);
+        }
+    }
+
+    // Column numbers
+    const colNumFontSize = Math.max(4, inch(0.042));
+    ctx.font = `${colNumFontSize}px 'Courier New', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = spec.colNumColor;
+    const colNumTopY = snap(inch(spec.topMargin - spec.rowPitch * 0.55));
+    const colNumBotY = snap(inch(spec.topMargin + 11 * spec.rowPitch + spec.rowPitch * 0.42));
+    for (let c = 0; c < 80; c++) {
+        const x = snap(inch(spec.leftMargin + c * spec.colPitch));
+        ctx.fillText(String(c + 1), x, colNumTopY);
+        ctx.fillText(String(c + 1), x, colNumBotY);
+    }
+
+    // Bottom branding
+    const brandBotFontSize = Math.max(5, inch(0.042));
+    ctx.font = `${brandBotFontSize}px 'Courier New', monospace`;
+    ctx.fillStyle = spec.brandColor;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('EHR  0815', snap(inch(spec.leftMargin)), snap(h - inch(0.02)));
+    ctx.textAlign = 'center';
+    ctx.fillText('IBM 5081', w / 2, snap(h - inch(0.02)));
+
+    // Printed characters
+    if (card) {
+        const printFontSize = Math.max(6, inch(0.075));
+        ctx.font = `bold ${printFontSize}px 'Courier New', monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = spec.printColor;
+        for (let c = 0; c < card.text.length; c++) {
+            const ch = card.text[c];
+            if (ch && ch !== ' ') {
+                const x = snap(inch(spec.leftMargin + c * spec.colPitch));
+                const y = snap(inch(spec.printY));
+                ctx.fillText(ch.toUpperCase(), x, y);
+            }
+        }
+    }
+
+    // Holes
+    if (card) {
+        const hw = inch(spec.holeWidth);
+        const hh = inch(spec.holeHeight);
+        const hr = inch(spec.holeRadius);
+        ctx.fillStyle = spec.holeFill;
+        for (let c = 0; c < 80; c++) {
+            for (let ri = 0; ri < 12; ri++) {
+                if (card.columns[c][ri]) {
+                    const cx = inch(spec.leftMargin + c * spec.colPitch);
+                    const cy = inch(spec.topMargin + ri * spec.rowPitch);
+                    const hx = snap(cx - hw / 2);
+                    const hy = snap(cy - hh / 2);
+                    ctx.beginPath();
+                    ctx.moveTo(hx + hr, hy);
+                    ctx.lineTo(hx + hw - hr, hy);
+                    ctx.arcTo(hx + hw, hy, hx + hw, hy + hr, hr);
+                    ctx.lineTo(hx + hw, hy + hh - hr);
+                    ctx.arcTo(hx + hw, hy + hh, hx + hw - hr, hy + hh, hr);
+                    ctx.lineTo(hx + hr, hy + hh);
+                    ctx.arcTo(hx, hy + hh, hx, hy + hh - hr, hr);
+                    ctx.lineTo(hx, hy + hr);
+                    ctx.arcTo(hx, hy, hx + hr, hy, hr);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+        }
+    }
+
+    ctx.restore();
+}
+
+// Render with same text as the reference image
+const refText = "HELLO, WORLD. THIS IS TWO-BIT HISTORY. ABCDEFGHIJKLMNOPQRSTUVWXYZ 123456 !$&#@*";
+const card = createCard(refText);
+
+// Render at 767px to match reference image width
+renderCard(document.getElementById('our-card'), card, 767);
+renderCard(document.getElementById('overlay-card'), card, 767);
+
+// Set overlay image size to match
+const refImg = document.getElementById('overlay-ref');
+refImg.style.width = '767px';
+refImg.style.height = (767 / (7.375 / 3.250)) + 'px';
+document.getElementById('overlay-wrap').style.width = '767px';
+document.getElementById('overlay-wrap').style.height = refImg.style.height;
+
+// Blend slider
+const blend = document.getElementById('blend');
+const blendVal = document.getElementById('blend-val');
+blend.addEventListener('input', function() {
+    refImg.style.opacity = this.value / 100;
+    blendVal.textContent = this.value + '%';
+});
+</script>
+</body>
+</html>
