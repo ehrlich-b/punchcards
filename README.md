@@ -1,6 +1,6 @@
 # Punchcards
 
-A browser-based IBM punch card simulator with a working FORTRAN IV interpreter.
+An IBM 029 keypunch simulator rendering IBM 5081 cards with a FORTRAN IV (FORTRAN 66) interpreter targeting the System/360 Model 30.
 
 **Live:** [punch.ehrlich.dev](https://punch.ehrlich.dev)
 
