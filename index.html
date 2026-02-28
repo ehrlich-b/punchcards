@@ -1833,7 +1833,7 @@ function debugStep() {
         clearDebugHighlight();
     } else {
         debugStatus = 'stopped';
-        updateDebugHighlight(true);
+        updateDebugHighlight();
     }
 
     updateDebugUI();
@@ -1862,28 +1862,33 @@ function debugRun() {
 function debugTick() {
     if (debugStatus !== 'running' || !debugGen) return;
 
-    const step = debugGen.next();
-    debugState = step.value;
+    const delay = getExecDelay();
+    // At high speeds, batch multiple steps per frame and throttle UI to ~15fps
+    const stepsPerBatch = delay < 50 ? Math.ceil(50 / delay) : 1;
 
-    if (step.done) {
-        debugStatus = debugState && debugState.error ? 'error' : 'stopped';
-        // Final card render before clearing highlight
-        const canvas = document.getElementById('card-canvas');
-        const label = document.getElementById('card-label');
-        if (debugHighlightLine >= 0 && debugHighlightLine < deck.length) {
-            renderCard(canvas, deck[debugHighlightLine], 380);
-            label.textContent = 'Card ' + (debugHighlightLine + 1) + ' of ' + deck.length;
+    for (let i = 0; i < stepsPerBatch; i++) {
+        const step = debugGen.next();
+        debugState = step.value;
+
+        if (step.done) {
+            debugStatus = debugState && debugState.error ? 'error' : 'stopped';
+            updateDebugHighlight();
+            clearDebugHighlight();
+            updateDebugUI();
+            updateDebugOutput();
+            return;
         }
-        clearDebugHighlight();
-        updateDebugUI();
-        updateDebugOutput();
-        return;
     }
 
-    updateDebugHighlight(false);
-    updateDebugUI();
-    updateDebugOutput();
-    debugTimer = setTimeout(debugTick, getExecDelay());
+    const now = performance.now();
+    if (now - lastCardRenderTime >= 66) {
+        updateDebugHighlight();
+        updateDebugUI();
+        updateDebugOutput();
+        lastCardRenderTime = now;
+    }
+
+    debugTimer = setTimeout(debugTick, Math.max(delay, 10));
 }
 
 function debugReset() {
@@ -1905,23 +1910,18 @@ function clearDebugHighlight() {
     }
 }
 
-function updateDebugHighlight(forceRender) {
+function updateDebugHighlight() {
     clearDebugHighlight();
     if (debugState && !debugState.done && debugState.cardNum > 0) {
         const line = debugState.cardNum - 1;
         editor.addLineClass(line, 'background', 'cm-exec-line');
         editor.addLineClass(line, 'gutter', 'cm-exec-gutter');
         debugHighlightLine = line;
-        // Show executing card in card panel (debounced during RUN)
-        const now = performance.now();
-        if (forceRender || now - lastCardRenderTime >= 100) {
-            const canvas = document.getElementById('card-canvas');
-            const label = document.getElementById('card-label');
-            if (line < deck.length) {
-                renderCard(canvas, deck[line], 380);
-                label.textContent = 'Card ' + (line + 1) + ' of ' + deck.length;
-            }
-            lastCardRenderTime = now;
+        const canvas = document.getElementById('card-canvas');
+        const label = document.getElementById('card-label');
+        if (line < deck.length) {
+            renderCard(canvas, deck[line], 380);
+            label.textContent = 'Card ' + (line + 1) + ' of ' + deck.length;
         }
     }
 }
