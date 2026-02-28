@@ -2,40 +2,42 @@
 
 ## Milestone 1a: A Card on Screen
 
-- [ ] Project skeleton: index.html, basic layout, CodeMirror 5 from CDN
-- [ ] Hollerith encoding table (JS object mapping chars to 12-bit hole patterns)
-- [ ] Card data model: 80 cols x 12 rows, text content, encode/decode
-- [ ] Canvas card renderer (see CARD.md for full spec):
-  - [ ] DPR-aware canvas setup (devicePixelRatio scaling, sub-pixel snapping)
-  - [ ] Card body: Path2D with upper-left diagonal chamfer + 3 rounded corners
-  - [ ] Hole grid: rectangular holes (0.055" x 0.125") at correct positions
-  - [ ] Print strip: character text along top edge, one per column
-  - [ ] Color palette: cream body, dark brown holes, subtle border/shadow
-- [ ] IDE view layout: editor left, card stack right, stats below
-- [ ] Column 72 guide line in editor
-- [ ] FORTRAN syntax highlighting mode for CodeMirror (comments, labels, keywords)
+- [x] Project skeleton: index.html, basic layout, CodeMirror 5 from CDN
+- [x] Hollerith encoding table (JS object mapping chars to 12-bit hole patterns)
+- [x] Card data model: 80 cols x 12 rows, text content, encode/decode
+- [x] Canvas card renderer:
+  - [x] DPR-aware canvas setup (devicePixelRatio scaling, sub-pixel snapping)
+  - [x] Card body: Path2D with upper-left diagonal chamfer + 3 rounded corners
+  - [x] Hole grid: rectangular holes (0.055" x 0.125") at correct positions
+  - [x] Print strip: Keypunch029 dot-matrix font, naturally sized, warm grey
+  - [x] Color palette: cream body (#E6E3D7), dark brown holes, subtle border/shadow
+  - [x] Row digits, column numbers (middle + bottom), bottom branding
+  - [x] Left sidebar: EHRLICH MAINFRAME + <ehrlich.dev> vertical branding, registration notches
+- [x] IDE view layout: editor left, card stack right, stats below
+- [x] Column 72 guide line in editor
+- [x] FORTRAN syntax highlighting mode for CodeMirror (comments, labels, keywords)
 
 ## Milestone 1b: The Keypunch Lives
 
-- [ ] Card stack model: array of cards, add/remove/dispose tracking
-- [ ] Wire editor to card punching: each line = one card, typing punches holes
-- [ ] Dirty card tracking: backspace marks card dirty, no dispose yet
-- [ ] Dispose on re-type or navigate away: dirty card goes to recycle bin, fresh card punched
-- [ ] Card stats display: cards in deck, total punched, total disposed
-- [ ] Punch animation (brief visual pop when hole appears)
+- [x] Card stack model: array of cards, add/remove/dispose tracking
+- [x] Wire editor to card punching: each line = one card, typing punches holes
+- [x] Dirty card tracking: backspace marks card dirty, no dispose yet
+- [x] Dispose on re-type or navigate away: dirty card goes to recycle bin, fresh card punched
+- [x] Card stats display: cards in deck, total punched, total disposed
+- [x] Punch animation (brief visual pop when hole appears)
 
 ## Milestone 1c: Card Viewer + Recycle Bin
 
-- [ ] Card viewer: full-size single card, prev/next navigation
-- [ ] Column hover/click detail in card viewer (show encoding)
-- [ ] Recycle bin: stores old cards with content-at-disposal and original line number
-- [ ] Recycle bin viewer: browse disposed cards, inspect any in card viewer
-- [ ] Recycle bin cap at 500 cards (drop oldest)
+- [x] Card viewer: full-size single card, prev/next navigation
+- [x] Column hover/click detail in card viewer (show encoding)
+- [x] Recycle bin: stores old cards with content-at-disposal and original line number
+- [x] Recycle bin viewer: browse disposed cards, inspect any in card viewer
+- [x] Recycle bin cap at 500 cards (drop oldest)
 
 ## Milestone 1d: Persistence
 
-- [ ] localStorage auto-save: source, deck, recycle bin, stats (debounced on change)
-- [ ] localStorage restore: rebuild full state on page load
+- [x] localStorage auto-save: source, deck, recycle bin, stats (debounced on change)
+- [x] localStorage restore: rebuild full state on page load
 
 ## Milestone 2: Hello World (FORTRAN runs)
 
