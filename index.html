@@ -166,6 +166,15 @@ body {
 #stats .stat-value { color: #aaa; }
 
 /* --- Output panel --- */
+#output-drag {
+    height: 4px;
+    cursor: ns-resize;
+    border-top: 1px solid #2a4a7f;
+    flex-shrink: 0;
+}
+#output-drag:hover {
+    border-top-color: #4a7abf;
+}
 #output-panel {
     flex-shrink: 0;
     height: 160px;
@@ -584,6 +593,7 @@ body {
 </div>
 
 <div id="output-panel">
+    <div id="output-drag"></div>
     <div id="output-header">LINE PRINTER OUTPUT</div>
     <div id="output-content">READY</div>
 </div>
@@ -1981,6 +1991,35 @@ function loadState() {
 window.addEventListener('beforeunload', function() {
     if (saveTimeout) { clearTimeout(saveTimeout); saveState(); }
 });
+
+// ============================================================
+// Resizable Output Panel
+// ============================================================
+(function() {
+    const panel = document.getElementById('output-panel');
+    const drag = document.getElementById('output-drag');
+    const saved = localStorage.getItem(STORAGE_PREFIX + 'outputHeight');
+    if (saved) panel.style.height = saved + 'px';
+
+    let startY, startH;
+    drag.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        startY = e.clientY;
+        startH = panel.offsetHeight;
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+    function onMove(e) {
+        const h = Math.min(Math.max(startH + (startY - e.clientY), 80), window.innerHeight * 0.6);
+        panel.style.height = h + 'px';
+    }
+    function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        localStorage.setItem(STORAGE_PREFIX + 'outputHeight', panel.offsetHeight);
+        if (typeof editor !== 'undefined') editor.refresh();
+    }
+})();
 
 // ============================================================
 // Boot
