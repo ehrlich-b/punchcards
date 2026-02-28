@@ -581,7 +581,7 @@ body {
             </div>
             <div id="exec-speed">
                 <label>SPEED</label>
-                <input type="range" id="exec-speed-slider" min="1" max="100" value="10">
+                <input type="range" id="exec-speed-slider" min="1" max="1000" value="10" step="1">
                 <span id="exec-speed-label">10 lines/sec</span>
             </div>
         </div>
@@ -1866,6 +1866,10 @@ function debugTick() {
     // At high speeds, batch multiple steps per frame and throttle UI to ~15fps
     const stepsPerBatch = delay < 50 ? Math.ceil(50 / delay) : 1;
 
+    // Reservoir sample (k=1) across the batch so the displayed state
+    // is uniformly random — lines that use more wall time get highlighted
+    // proportionally more often.
+    let displayState = null;
     for (let i = 0; i < stepsPerBatch; i++) {
         const step = debugGen.next();
         debugState = step.value;
@@ -1878,12 +1882,17 @@ function debugTick() {
             updateDebugOutput();
             return;
         }
+
+        if (Math.random() < 1 / (i + 1)) displayState = step.value;
     }
 
     const now = performance.now();
     if (now - lastCardRenderTime >= 66) {
+        const realState = debugState;
+        debugState = displayState;
         updateDebugHighlight();
         updateDebugUI();
+        debugState = realState;
         updateDebugOutput();
         lastCardRenderTime = now;
     }
